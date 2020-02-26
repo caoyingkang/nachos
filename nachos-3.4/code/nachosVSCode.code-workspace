@@ -1,0 +1,28 @@
+{
+	"folders": [
+		{
+			"path": "bin"
+		},
+		{
+			"path": "filesys"
+		},
+		{
+			"path": "machine"
+		},
+		{
+			"path": "network"
+		},
+		{
+			"path": "test"
+		},
+		{
+			"path": "threads"
+		},
+		{
+			"path": "userprog"
+		},
+		{
+			"path": "vm"
+		}
+	]
+}
