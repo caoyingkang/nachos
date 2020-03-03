@@ -24,6 +24,14 @@
 					// execution stack, for detecting 
 					// stack overflows
 
+const char* status_str[4] = {"JUST_CREATED", "RUNNING", 
+                            "READY", "BLOCKED"};
+
+int Thread::totalNum = 0;
+int Thread::tidLast = -1;
+bool Thread::tidAssigned[MaxNumThreads] = {0};
+Thread* Thread::tid2ptr[MaxNumThreads] = {NULL};
+
 //----------------------------------------------------------------------
 // Thread::Thread
 // 	Initialize a thread control block, so that we can then call
@@ -32,9 +40,30 @@
 //	"threadName" is an arbitrary string, useful for debugging.
 //----------------------------------------------------------------------
 
-Thread::Thread(char* threadName)
+Thread::Thread(char* threadName, char* userid)
 {
     name = threadName;
+    uID = userid;
+    
+    if(totalNum >= MaxNumThreads){
+        fprintf(stderr, "ERROR: Number of threads exceeded!\n");                                          \
+	    fflush(stderr);
+        Abort(); 
+    }
+    totalNum++;
+
+    // assign a new tID
+    if(tidLast == -1){
+        tidAssigned[tID=tidLast=0] = true;
+    }else{
+        int i = (tidLast + 1) % MaxNumThreads;
+        while (i != tidLast && tidAssigned[i])
+            i = (i + 1) % MaxNumThreads;
+        ASSERT(!tidAssigned[i]); // must find one
+        tidAssigned[tID=tidLast=i] = true;
+    }
+    tid2ptr[tID] = this;
+
     stackTop = NULL;
     stack = NULL;
     status = JUST_CREATED;
@@ -148,6 +177,9 @@ Thread::Finish ()
     
     DEBUG('t', "Finishing thread \"%s\"\n", getName());
     
+    totalNum--;
+    tidAssigned[tID] = false;
+    tid2ptr[tID] = NULL;
     threadToBeDestroyed = currentThread;
     Sleep();					// invokes SWITCH
     // not reached
@@ -318,3 +350,21 @@ Thread::RestoreUserState()
 	machine->WriteRegister(i, userRegisters[i]);
 }
 #endif
+
+//----------------------------------------------------------------------
+// ThreadsStatus
+// Print out info and status of all existing threads in the format:
+// (in increasing order of tid)
+// user     tid     name    status
+// ***      **      ***     ***
+// ***      **      ***     ***
+//----------------------------------------------------------------------
+void ThreadsStatus(){
+    printf("user\t\ttid\t\tname\t\tstatus\n");
+    for (int i = 0; i < MaxNumThreads; ++i){
+        if(Thread::tid2ptr[i] == NULL) continue;
+        Thread* ptr = Thread::tid2ptr[i];
+        printf("%s\t\t%d\t\t%s\t\t%s\n", ptr->uID, ptr->tID,
+            ptr->name, status_str[(int)ptr->status]);
+    }
+}

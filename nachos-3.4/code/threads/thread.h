@@ -56,6 +56,10 @@
 #define StackSize	(4 * 1024)	// in words
 
 
+// Maximum #threads existing in Nachos
+#define MaxNumThreads 128
+
+
 // Thread state
 enum ThreadStatus { JUST_CREATED, RUNNING, READY, BLOCKED };
 
@@ -81,7 +85,7 @@ class Thread {
     void *machineState[MachineStateSize];  // all registers except for stackTop
 
   public:
-    Thread(char* debugName);		// initialize a Thread 
+    Thread(char* debugName, char* userid="root");		// initialize a Thread 
     ~Thread(); 				// deallocate a Thread
 					// NOTE -- thread being deleted
 					// must not be running when delete 
@@ -100,7 +104,12 @@ class Thread {
 						// overflowed its stack
     void setStatus(ThreadStatus st) { status = st; }
     char* getName() { return (name); }
+    char* getUserID() {return uID;}
+    int getThreadID() {return tID;}
     void Print() { printf("%s, ", name); }
+
+    friend void ThreadsStatus(); 
+          // print out info and status of all existing threads
 
   private:
     // some of the private data for this class is listed above
@@ -110,10 +119,26 @@ class Thread {
 					// (If NULL, don't deallocate stack)
     ThreadStatus status;		// ready, running or blocked
     char* name;
-
+    char* uID; // user ID
+    int tID; // thread ID
+    
     void StackAllocate(VoidFunctionPtr func, void *arg);
     					// Allocate a stack for thread.
 					// Used internally by Fork()
+
+    static int totalNum; // record the total #threads existing in Nachos
+          // get inc when new thread is created (in Thread constructor)
+          // get dec when a thread finishes (in thread->Finish())
+
+    // tidAssigned and tidLast are used to tell what is the tid
+    // the next created thread is about to assume.
+    static bool tidAssigned[MaxNumThreads];
+          // records whether a tid has been assigned to an existing thread
+    static int tidLast;
+          // tid of the last created thread. (initialized to -1)
+
+    static Thread* tid2ptr[MaxNumThreads]; 
+          // record the pointer to each Thread instance
 
 #ifdef USER_PROGRAM
 // A thread running a user program actually has *two* sets of CPU registers -- 
@@ -129,6 +154,9 @@ class Thread {
     AddrSpace *space;			// User code this thread is running.
 #endif
 };
+
+// print out info and status of all existing threads
+void ThreadsStatus();
 
 // Magical machine-dependent routines, defined in switch.s
 

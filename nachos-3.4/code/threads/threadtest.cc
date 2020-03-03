@@ -32,6 +32,7 @@ SimpleThread(int which)
     
     for (num = 0; num < 5; num++) {
 	printf("*** thread %d looped %d times\n", which, num);
+        ThreadsStatus();
         currentThread->Yield();
     }
 }
@@ -54,6 +55,47 @@ ThreadTest1()
 }
 
 //----------------------------------------------------------------------
+// ThreadTest2
+// 	Creat n new threads recursively,
+//  and yield CPU to the thread which calls the next recursion level.
+//----------------------------------------------------------------------
+
+static int CalledTimes = 0;
+
+void UpToCeiling(int ceiling){
+    if(CalledTimes >= ceiling){
+        printf("tid %d's play: Ceiling touched!\n", 
+                currentThread->getThreadID());
+        return;
+    }
+    printf("tid %d's play: Ceiling not touched.\n", 
+            currentThread->getThreadID());
+
+    CalledTimes++;
+    Thread *t = new Thread("AnyName");
+    t->Fork(UpToCeiling, (void*)(ceiling));
+
+    while(CalledTimes < ceiling){
+        printf("tid %d's play: Ceiling not touched.\n", 
+                currentThread->getThreadID());
+        currentThread->Yield();
+    }
+    printf("tid %d's play: Ceiling touched!\n", 
+            currentThread->getThreadID());
+    return;
+}
+
+void
+ThreadTest2()
+{
+    DEBUG('t', "Entering ThreadTest2");
+    
+     UpToCeiling(5);
+    // UpToCeiling(127);
+    // UpToCeiling(128);
+}
+
+//----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
 //----------------------------------------------------------------------
@@ -64,6 +106,9 @@ ThreadTest()
     switch (testnum) {
     case 1:
 	ThreadTest1();
+    break;
+    case 2:
+	ThreadTest2();
 	break;
     default:
 	printf("No test specified.\n");
