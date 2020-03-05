@@ -59,6 +59,8 @@
 // Maximum #threads existing in Nachos
 #define MaxNumThreads 128
 
+// Valid priority levels are: 0,1,...,NumPriLevels-1
+#define NumPriLevels 5
 
 // Thread state
 enum ThreadStatus { JUST_CREATED, RUNNING, READY, BLOCKED };
@@ -85,7 +87,7 @@ class Thread {
     void *machineState[MachineStateSize];  // all registers except for stackTop
 
   public:
-    Thread(char* debugName, int priority, char* userid="root");		// initialize a Thread 
+    Thread(char* debugName, int priority=NumPriLevels-1, char* userid="root");		// initialize a Thread 
     ~Thread(); 				// deallocate a Thread
 					// NOTE -- thread being deleted
 					// must not be running when delete 
@@ -123,7 +125,7 @@ class Thread {
     char* uID; // user ID
     int tID; // thread ID
     int pri; // non-negative priority number, 
-      // smaller number for higher priority (0 the highest)
+      // smaller number for higher priority
     
     void StackAllocate(VoidFunctionPtr func, void *arg);
     					// Allocate a stack for thread.

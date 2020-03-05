@@ -39,12 +39,14 @@ Thread* Thread::tid2ptr[MaxNumThreads] = {NULL};
 //
 //	"threadName" is an arbitrary string, useful for debugging.
 //  default value for userid: "root".
+//  default priority: the lowest priority, i.e. NumPriLevels-1
 //----------------------------------------------------------------------
 
 Thread::Thread(char* threadName, int priority, char* userid)
 {
     name = threadName;
     uID = userid;
+    ASSERT(pri >= 0 && pri < NumPriLevels);
     pri = priority;
     
     if(totalNum >= MaxNumThreads){
