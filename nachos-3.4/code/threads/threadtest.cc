@@ -26,12 +26,14 @@ int testnum = 1;
 //----------------------------------------------------------------------
 
 void
-SimpleThread(int which)
+SimpleThread(int dumb)
 {
     int num;
     
     for (num = 0; num < 5; num++) {
-	printf("*** thread %d looped %d times\n", which, num);
+	printf("*** thread \"%s\" (tid=%d) looped %d times\n", 
+            currentThread->getName(), currentThread->getThreadID(), 
+            num);
         ThreadsStatus();
         currentThread->Yield();
     }
@@ -48,9 +50,9 @@ ThreadTest1()
 {
     DEBUG('t', "Entering ThreadTest1");
 
-    Thread *t = new Thread("forked thread", 0);
+    Thread *t = new Thread("forked thread");
 
-    t->Fork(SimpleThread, (void*)1);
+    t->Fork(SimpleThread, (void*)0);
     SimpleThread(0);
 }
 
@@ -96,6 +98,28 @@ ThreadTest2()
 }
 
 //----------------------------------------------------------------------
+// ThreadTest3
+// 	Almost same as ThreadTest1 except that this is to 
+//  test SCHED_PRI_PRMPT
+//----------------------------------------------------------------------
+
+void
+ThreadTest3()
+{
+    DEBUG('t', "Entering ThreadTest3");
+
+    Thread *t;
+    t = new Thread("pri0", 0);
+    t->Fork(SimpleThread, (void*)0);
+    t = new Thread("pri2", 2);
+    t->Fork(SimpleThread, (void*)0);
+    t = new Thread("pri4", 4);
+    t->Fork(SimpleThread, (void*)0);
+
+    SimpleThread(0);
+}
+
+//----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
 //----------------------------------------------------------------------
@@ -109,6 +133,9 @@ ThreadTest()
     break;
     case 2:
 	ThreadTest2();
+	break;
+    case 3:
+	ThreadTest3();
 	break;
     default:
 	printf("No test specified.\n");
