@@ -218,10 +218,21 @@ Thread::Yield ()
     DEBUG('t', "Yielding thread \"%s\"\n", getName());
     
     nextThread = scheduler->FindNextToRun();
-    if (nextThread != NULL) {
-	scheduler->ReadyToRun(this);
-	scheduler->Run(nextThread);
+    if (nextThread != NULL){
+#ifdef SCHED_NAIVE
+        scheduler->ReadyToRun(this);
+        scheduler->Run(nextThread);
+#endif
+#ifdef SCHED_PRI_PRMPT
+        if (nextThread->getPriority() < currentThread->getPriority()){
+            scheduler->ReadyToRun(this);
+            scheduler->Run(nextThread);
+        } else{
+            scheduler->ReadyToRun(nextThread); // send it back
+        }
+#endif
     }
+
     (void) interrupt->SetLevel(oldLevel);
 }
 

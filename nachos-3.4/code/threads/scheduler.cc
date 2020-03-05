@@ -62,6 +62,13 @@ Scheduler::ReadyToRun (Thread *thread)
 #endif
 #ifdef SCHED_PRI_PRMPT
     readyList->SortedInsert((void *)thread, thread->getPriority());
+    // Since this is a preemptive policy, we should check here whether
+    // the newly inserted thread is to take preemption. Pay attention that
+    // there is no need to worry about infinite loop of calling each other
+    // between scheduler->ReadyToRun and currentThread->Yield, since the
+    // condition in the "if" statement will never satisfy in that case.
+    if (thread->getPriority() < currentThread->getPriority())
+        currentThread->Yield();
 #endif
 }
 
