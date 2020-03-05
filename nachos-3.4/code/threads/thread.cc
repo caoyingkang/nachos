@@ -42,12 +42,20 @@ Thread* Thread::tid2ptr[MaxNumThreads] = {NULL};
 //  default priority: the lowest priority, i.e. NumPriLevels-1
 //----------------------------------------------------------------------
 
+#ifdef SCHED_PRI_PRMPT
 Thread::Thread(char* threadName, int priority, char* userid)
+#else // SCHED_NAIVE, SCHED_RR
+Thread::Thread(char* threadName, char* userid)
+#endif
 {
     name = threadName;
     uID = userid;
+
+#ifdef SCHED_PRI_PRMPT
     ASSERT(pri >= 0 && pri < NumPriLevels);
     pri = priority;
+#endif
+
     
     if(totalNum >= MaxNumThreads){
         fprintf(stderr, "ERROR: Number of threads exceeded!\n");                                          \
@@ -375,11 +383,23 @@ Thread::RestoreUserState()
 // ***      **      ***     ***         ***
 //----------------------------------------------------------------------
 void ThreadsStatus(){
+#ifdef SCHED_PRI_PRMPT
     printf("user\t\ttid\t\tname\t\tstatus\t\tpriority\n");
+#else // SCHED_NAIVE, SCHED_RR
+    printf("user\t\ttid\t\tname\t\tstatus\n");
+#endif
+
     for (int i = 0; i < MaxNumThreads; ++i){
         if(Thread::tid2ptr[i] == NULL) continue;
         Thread* ptr = Thread::tid2ptr[i];
-        printf("%s\t\t%d\t\t%s\t\t%s\t\t%d\n", ptr->uID, ptr->tID,
+
+#ifdef SCHED_PRI_PRMPT
+    printf("%s\t\t%d\t\t%s\t\t%s\t\t%d\n", ptr->uID, ptr->tID,
             ptr->name, status_str[ptr->status], ptr->pri);
+#else // SCHED_NAIVE, SCHED_RR
+    printf("%s\t\t%d\t\t%s\t\t%s\n", ptr->uID, ptr->tID,
+            ptr->name, status_str[ptr->status]);
+#endif
+        
     }
 }

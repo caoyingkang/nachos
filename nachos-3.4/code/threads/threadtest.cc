@@ -97,6 +97,8 @@ ThreadTest2()
     // UpToCeiling(128);
 }
 
+#ifdef SCHED_PRI_PRMPT
+
 //----------------------------------------------------------------------
 // ThreadTest3
 // 	Almost same as ThreadTest1 except that this is to 
@@ -118,6 +120,7 @@ ThreadTest3()
 
     SimpleThread(0);
 }
+#endif // SCHED_PRI_PRMPT
 
 //----------------------------------------------------------------------
 // ThreadTest
@@ -134,9 +137,11 @@ ThreadTest()
     case 2:
 	ThreadTest2();
 	break;
+#ifdef SCHED_PRI_PRMPT
     case 3:
 	ThreadTest3();
 	break;
+#endif
     default:
 	printf("No test specified.\n");
 	break;

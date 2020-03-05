@@ -9,10 +9,6 @@
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
 
-// choose the scheduler algo here
-// #define SCHED_NAIVE // naive sched: FIFO, omitting priority
-#define SCHED_PRI_PRMPT // preemptive sched based on priority
-
 #include "copyright.h"
 #include "list.h"
 #include "thread.h"

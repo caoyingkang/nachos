@@ -45,6 +45,11 @@
 #include "addrspace.h"
 #endif
 
+// choose the scheduler algo here
+// #define SCHED_NAIVE // naive sched: FIFO, omitting priority
+#define SCHED_PRI_PRMPT // preemptive sched based on priority
+// #define SCHED_RR // Round-Robin
+
 // CPU register state to be saved on context switch.  
 // The SPARC and MIPS only need 10 registers, but the Snake needs 18.
 // For simplicity, this is just the max over all architectures.
@@ -87,8 +92,12 @@ class Thread {
     void *machineState[MachineStateSize];  // all registers except for stackTop
 
   public:
+#ifdef SCHED_PRI_PRMPT
     Thread(char* debugName, int priority=(NumPriLevels-1),
            char* userid="root");		// initialize a Thread 
+#else // SCHED_NAIVE, SCHED_RR
+    Thread(char* debugName, char* userid="root");		// initialize a Thread
+#endif
     ~Thread(); 				// deallocate a Thread
 					// NOTE -- thread being deleted
 					// must not be running when delete 
@@ -109,7 +118,9 @@ class Thread {
     char* getName() { return (name); }
     char* getUserID() {return uID;}
     int getThreadID() {return tID;}
+#ifdef SCHED_PRI_PRMPT
     int getPriority() {return pri;}
+#endif
     void Print() { printf("%s, ", name); }
 
     friend void ThreadsStatus(); 
@@ -125,8 +136,11 @@ class Thread {
     char* name;
     char* uID; // user ID
     int tID; // thread ID
+#ifdef SCHED_PRI_PRMPT
     int pri; // non-negative priority number, 
       // smaller number for higher priority
+#endif
+
     
     void StackAllocate(VoidFunctionPtr func, void *arg);
     					// Allocate a stack for thread.
