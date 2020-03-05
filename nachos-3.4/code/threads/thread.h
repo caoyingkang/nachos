@@ -85,7 +85,7 @@ class Thread {
     void *machineState[MachineStateSize];  // all registers except for stackTop
 
   public:
-    Thread(char* debugName, char* userid="root");		// initialize a Thread 
+    Thread(char* debugName, int priority, char* userid="root");		// initialize a Thread 
     ~Thread(); 				// deallocate a Thread
 					// NOTE -- thread being deleted
 					// must not be running when delete 
@@ -106,6 +106,7 @@ class Thread {
     char* getName() { return (name); }
     char* getUserID() {return uID;}
     int getThreadID() {return tID;}
+    int getPriority() {return pri;}
     void Print() { printf("%s, ", name); }
 
     friend void ThreadsStatus(); 
@@ -121,6 +122,8 @@ class Thread {
     char* name;
     char* uID; // user ID
     int tID; // thread ID
+    int pri; // non-negative priority number, 
+      // smaller number for higher priority (0 the highest)
     
     void StackAllocate(VoidFunctionPtr func, void *arg);
     					// Allocate a stack for thread.

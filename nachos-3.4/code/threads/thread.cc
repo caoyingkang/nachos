@@ -38,12 +38,14 @@ Thread* Thread::tid2ptr[MaxNumThreads] = {NULL};
 //	Thread::Fork.
 //
 //	"threadName" is an arbitrary string, useful for debugging.
+//  default value for userid: "root".
 //----------------------------------------------------------------------
 
-Thread::Thread(char* threadName, char* userid)
+Thread::Thread(char* threadName, int priority, char* userid)
 {
     name = threadName;
     uID = userid;
+    pri = priority;
     
     if(totalNum >= MaxNumThreads){
         fprintf(stderr, "ERROR: Number of threads exceeded!\n");                                          \
@@ -355,16 +357,16 @@ Thread::RestoreUserState()
 // ThreadsStatus
 // Print out info and status of all existing threads in the format:
 // (in increasing order of tid)
-// user     tid     name    status
-// ***      **      ***     ***
-// ***      **      ***     ***
+// user     tid     name    status      pri
+// ***      **      ***     ***         ***
+// ***      **      ***     ***         ***
 //----------------------------------------------------------------------
 void ThreadsStatus(){
-    printf("user\t\ttid\t\tname\t\tstatus\n");
+    printf("user\t\ttid\t\tname\t\tstatus\t\tpriority\n");
     for (int i = 0; i < MaxNumThreads; ++i){
         if(Thread::tid2ptr[i] == NULL) continue;
         Thread* ptr = Thread::tid2ptr[i];
-        printf("%s\t\t%d\t\t%s\t\t%s\n", ptr->uID, ptr->tID,
-            ptr->name, status_str[(int)ptr->status]);
+        printf("%s\t\t%d\t\t%s\t\t%s\t\t%d\n", ptr->uID, ptr->tID,
+            ptr->name, status_str[ptr->status], ptr->pri);
     }
 }

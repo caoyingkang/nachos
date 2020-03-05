@@ -48,7 +48,7 @@ ThreadTest1()
 {
     DEBUG('t', "Entering ThreadTest1");
 
-    Thread *t = new Thread("forked thread");
+    Thread *t = new Thread("forked thread", 0);
 
     t->Fork(SimpleThread, (void*)1);
     SimpleThread(0);
@@ -72,7 +72,7 @@ void UpToCeiling(int ceiling){
             currentThread->getThreadID());
 
     CalledTimes++;
-    Thread *t = new Thread("AnyName");
+    Thread *t = new Thread("AnyName", 0);
     t->Fork(UpToCeiling, (void*)(ceiling));
 
     while(CalledTimes < ceiling){

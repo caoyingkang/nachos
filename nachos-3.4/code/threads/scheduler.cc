@@ -53,10 +53,16 @@ Scheduler::~Scheduler()
 void
 Scheduler::ReadyToRun (Thread *thread)
 {
-    DEBUG('t', "Putting thread %s on ready list.\n", thread->getName());
+    DEBUG('t', "Putting thread \"%s\" on ready list.\n", thread->getName());
 
     thread->setStatus(READY);
+
+#ifdef SCHED_NAIVE
     readyList->Append((void *)thread);
+#endif
+#ifdef SCHED_PRI_PRMPT
+    readyList->SortedInsert((void *)thread, thread->getPriority());
+#endif
 }
 
 //----------------------------------------------------------------------
