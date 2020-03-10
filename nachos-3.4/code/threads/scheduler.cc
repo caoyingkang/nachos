@@ -48,28 +48,32 @@ Scheduler::~Scheduler()
 //	Put it on the ready list, for later scheduling onto the CPU.
 //
 //	"thread" is the thread to be put on the ready list.
+//  If "prepend" is true, send thread to the front of readyList.
 //----------------------------------------------------------------------
 
 void
-Scheduler::ReadyToRun (Thread *thread)
+Scheduler::ReadyToRun (Thread *thread, bool prepend)
 {
     DEBUG('t', "Putting thread \"%s\" on ready list.\n", thread->getName());
 
     thread->setStatus(READY);
 
-#ifdef SCHED_NAIVE
-    readyList->Append((void *)thread);
-#endif
+    if (prepend) {
+        readyList->Prepend((void *)thread);
+    } else {
 #ifdef SCHED_PRI_PRMPT
-    readyList->SortedInsert((void *)thread, thread->getPriority());
-    // Since this is a preemptive policy, we should check here whether
-    // the newly inserted thread is to take preemption. Pay attention that
-    // there is no need to worry about infinite loop of calling each other
-    // between scheduler->ReadyToRun and currentThread->Yield, since the
-    // condition in the "if" statement will never satisfy in that case.
-    if (thread->getPriority() < currentThread->getPriority())
-        currentThread->Yield();
+        readyList->SortedInsert((void *)thread, thread->getPriority());
+        // Since this is a preemptive policy, we should check here whether
+        // the newly inserted thread is to take preemption. Pay attention that
+        // there is no need to worry about infinite loop of calling each other
+        // between scheduler->ReadyToRun and currentThread->Yield, since the
+        // condition in the "if" statement will never satisfy in that case.
+        if (thread->getPriority() < currentThread->getPriority())
+            currentThread->Yield();
+#else // SCHED_NAIVE, SCHED_RR
+        readyList->Append((void *)thread);
 #endif
+    }
 }
 
 //----------------------------------------------------------------------
@@ -138,6 +142,10 @@ Scheduler::Run (Thread *nextThread)
         delete threadToBeDestroyed;
 	threadToBeDestroyed = NULL;
     }
+
+#ifdef SCHED_RR
+    currentThread->RecordTime(stats->totalTicks);
+#endif
     
 #ifdef USER_PROGRAM
     if (currentThread->space != NULL) {		// if there is an address space
@@ -155,6 +163,7 @@ Scheduler::Run (Thread *nextThread)
 void
 Scheduler::Print()
 {
-    printf("Ready list contents:\n");
+    printf("Ready list contents: ");
     readyList->Mapcar((VoidFunctionPtr) ThreadPrint);
+    printf("\n");
 }

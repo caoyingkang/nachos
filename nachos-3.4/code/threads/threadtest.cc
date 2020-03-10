@@ -26,7 +26,7 @@ int testnum = 1;
 //----------------------------------------------------------------------
 
 void
-SimpleThread(int dumb)
+SimpleThread(int dummy)
 {
     int num;
     
@@ -34,7 +34,8 @@ SimpleThread(int dumb)
 	printf("*** thread \"%s\" (tid=%d) looped %d times\n", 
             currentThread->getName(), currentThread->getThreadID(), 
             num);
-        ThreadsStatus();
+        // ThreadsStatus();
+         scheduler->Print();
         currentThread->Yield();
     }
 }
@@ -111,16 +112,51 @@ ThreadTest3()
     DEBUG('t', "Entering ThreadTest3");
 
     Thread *t;
+    t = new Thread("pri3", 3);
+    t->Fork(SimpleThread, (void*)0);
     t = new Thread("pri0", 0);
-    t->Fork(SimpleThread, (void*)0);
-    t = new Thread("pri2", 2);
-    t->Fork(SimpleThread, (void*)0);
-    t = new Thread("pri4", 4);
     t->Fork(SimpleThread, (void*)0);
 
     SimpleThread(0);
 }
 #endif // SCHED_PRI_PRMPT
+
+#ifdef SCHED_RR
+
+//----------------------------------------------------------------------
+// ThreadTest4
+// 	
+//----------------------------------------------------------------------
+
+static int timeToQuit = 10000;
+
+void FakeSysCall(int dummy){
+    int i = 0;
+    while (stats->totalTicks < timeToQuit)
+    {
+        if (i%50==0)
+        printf("*** thread \"%s\" (tid=%d) looped %d times\n", 
+            currentThread->getName(), currentThread->getThreadID(), i);
+        interrupt->SetLevel(IntOff);
+        interrupt->SetLevel(IntOn);
+        ++i;
+    }
+}
+
+void
+ThreadTest4()
+{
+    DEBUG('t', "Entering ThreadTest4");
+
+    Thread *t;
+    t = new Thread("forked1");
+    t->Fork(FakeSysCall, (void*)0);
+    t = new Thread("forked2");
+    t->Fork(FakeSysCall, (void*)0);
+
+    FakeSysCall(0);
+}
+#endif // SCHED_RR
 
 //----------------------------------------------------------------------
 // ThreadTest
@@ -140,6 +176,11 @@ ThreadTest()
 #ifdef SCHED_PRI_PRMPT
     case 3:
 	ThreadTest3();
+	break;
+#endif
+#ifdef SCHED_RR
+    case 4:
+	ThreadTest4();
 	break;
 #endif
     default:

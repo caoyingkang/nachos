@@ -60,8 +60,15 @@ extern void Cleanup();
 static void
 TimerInterruptHandler(int dummy)
 {
+#ifdef SCHED_RR
+	if (interrupt->getStatus() != IdleMode){
+        if (currentThread->isTimeExpired(stats->totalTicks))
+            interrupt->YieldOnReturn();
+    }
+#else // SCHED_NAIVE, SCHED_PRI_PRMPT
     if (interrupt->getStatus() != IdleMode)
-	interrupt->YieldOnReturn();
+	    interrupt->YieldOnReturn();
+#endif
 }
 
 //----------------------------------------------------------------------
@@ -133,8 +140,13 @@ Initialize(int argc, char **argv)
     stats = new Statistics();			// collect statistics
     interrupt = new Interrupt;			// start up interrupt handling
     scheduler = new Scheduler();		// initialize the ready queue
-    if (randomYield)				// start the timer (if needed)
+
+#ifdef SCHED_RR
 	timer = new Timer(TimerInterruptHandler, 0, randomYield);
+#else // SCHED_NAIVE, SCHED_PRI_PRMPT
+    if (randomYield)				// start the timer (if needed)
+	    timer = new Timer(TimerInterruptHandler, 0, randomYield);
+#endif
 
     threadToBeDestroyed = NULL;
 

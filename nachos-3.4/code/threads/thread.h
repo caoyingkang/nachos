@@ -47,8 +47,8 @@
 
 // choose the scheduler algo here
 // #define SCHED_NAIVE // naive sched: FIFO, omitting priority
-#define SCHED_PRI_PRMPT // preemptive sched based on priority
-// #define SCHED_RR // Round-Robin
+// #define SCHED_PRI_PRMPT // preemptive sched based on priority
+ #define SCHED_RR // Round-Robin
 
 // CPU register state to be saved on context switch.  
 // The SPARC and MIPS only need 10 registers, but the Snake needs 18.
@@ -65,7 +65,7 @@
 #define MaxNumThreads 128
 
 // Valid priority levels are: 0,1,...,NumPriLevels-1
-#define NumPriLevels 5
+#define NumPriLevels 4
 
 // Thread state
 enum ThreadStatus { JUST_CREATED, RUNNING, READY, BLOCKED };
@@ -123,6 +123,12 @@ class Thread {
 #endif
     void Print() { printf("%s, ", name); }
 
+#ifdef SCHED_RR
+    void RecordTime(int now) {runningSince = now;}
+          // update runningSince
+    bool isTimeExpired(int now); // check if time slice is used up
+#endif
+
     friend void ThreadsStatus(); 
           // print out info and status of all existing threads
 
@@ -140,7 +146,11 @@ class Thread {
     int pri; // non-negative priority number, 
       // smaller number for higher priority
 #endif
-
+#ifdef SCHED_RR
+    int runningSince; // Record the time the thread got scheduled
+        // on CPU, examined by timer interrupt handler for time
+        // slicing.
+#endif
     
     void StackAllocate(VoidFunctionPtr func, void *arg);
     					// Allocate a stack for thread.

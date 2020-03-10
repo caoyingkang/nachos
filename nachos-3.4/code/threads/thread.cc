@@ -55,7 +55,9 @@ Thread::Thread(char* threadName, char* userid)
     ASSERT(pri >= 0 && pri < NumPriLevels);
     pri = priority;
 #endif
-
+#ifdef SCHED_RR
+    runningSince = 0;
+#endif
     
     if(totalNum >= MaxNumThreads){
         fprintf(stderr, "ERROR: Number of threads exceeded!\n");                                          \
@@ -218,29 +220,33 @@ Thread::Finish ()
 void
 Thread::Yield ()
 {
-    Thread *nextThread;
     IntStatus oldLevel = interrupt->SetLevel(IntOff);
     
     ASSERT(this == currentThread);
     
     DEBUG('t', "Yielding thread \"%s\"\n", getName());
     
-    nextThread = scheduler->FindNextToRun();
+    Thread *nextThread = scheduler->FindNextToRun();
     if (nextThread != NULL){
-#ifdef SCHED_NAIVE
-        scheduler->ReadyToRun(this);
-        scheduler->Run(nextThread);
-#endif
 #ifdef SCHED_PRI_PRMPT
-        if (nextThread->getPriority() < currentThread->getPriority()){
+        if (nextThread->getPriority() <= currentThread->getPriority()){
             scheduler->ReadyToRun(this);
             scheduler->Run(nextThread);
         } else{
-            scheduler->ReadyToRun(nextThread); // send it back
+            scheduler->ReadyToRun(nextThread, true); // send it back
         }
+#else // SCHED_NAIVE, SCHED_RR
+        scheduler->ReadyToRun(this);
+        scheduler->Run(nextThread);
+#endif
+    }else{
+#ifdef SCHED_RR
+        // didn't find any thread to which to yield the CPU, thus
+        // reset runningSince and continue to run.
+        RecordTime(stats->totalTicks);
 #endif
     }
-
+    
     (void) interrupt->SetLevel(oldLevel);
 }
 
@@ -289,8 +295,25 @@ Thread::Sleep ()
 //----------------------------------------------------------------------
 
 static void ThreadFinish()    { currentThread->Finish(); }
-static void InterruptEnable() { interrupt->Enable(); }
+// static void InterruptEnable() { interrupt->Enable(); }
 void ThreadPrint(int arg){ Thread *t = (Thread *)arg; t->Print(); }
+
+static void StartupRoutine() {
+    DEBUG('t', "Now in StartupRoutine of thread \"%s\"\n", currentThread->getName());
+
+    if (threadToBeDestroyed != NULL) {
+        delete threadToBeDestroyed;
+	    threadToBeDestroyed = NULL;
+    }
+
+#ifdef SCHED_RR
+    // Note that this should come before interrupt->Enable(), otherwise
+    // timer interrupt may appear before RecordTime.
+    currentThread->RecordTime(stats->totalTicks);
+#endif
+
+    interrupt->Enable();
+}
 
 //----------------------------------------------------------------------
 // Thread::StackAllocate
@@ -332,7 +355,7 @@ Thread::StackAllocate (VoidFunctionPtr func, void *arg)
 #endif  // HOST_SNAKE
     
     machineState[PCState] = (int*)ThreadRoot;
-    machineState[StartupPCState] = (int*)InterruptEnable;
+    machineState[StartupPCState] = (int*)StartupRoutine;
     machineState[InitialPCState] = (int*)func;
     machineState[InitialArgState] = arg;
     machineState[WhenDonePCState] = (int*)ThreadFinish;
@@ -372,6 +395,17 @@ Thread::RestoreUserState()
     for (int i = 0; i < NumTotalRegs; i++)
 	machine->WriteRegister(i, userRegisters[i]);
 }
+#endif
+
+//----------------------------------------------------------------------
+// Thread::isTimeExpired
+//	Check if time slice is used up.
+// This routine is called by timer interrupt handler periodically.
+//----------------------------------------------------------------------
+#ifdef SCHED_RR
+    bool Thread::isTimeExpired(int now){
+        return (now - runningSince) >= TimeSlice;
+    }
 #endif
 
 //----------------------------------------------------------------------

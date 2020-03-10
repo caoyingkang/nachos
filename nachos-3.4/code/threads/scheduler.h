@@ -22,7 +22,9 @@ class Scheduler {
     Scheduler();			// Initialize list of ready threads 
     ~Scheduler();			// De-allocate ready list
 
-    void ReadyToRun(Thread* thread);	// Thread can be dispatched.
+    void ReadyToRun(Thread* thread, bool prepend=false);
+          // Thread can be dispatched.
+          // If "prepend" is true, send thread to the front of readyList.
     Thread* FindNextToRun();		// Dequeue first thread on the ready 
 					// list, if any, and return thread.
     void Run(Thread* nextThread);	// Cause nextThread to start running
