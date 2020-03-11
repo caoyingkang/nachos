@@ -165,14 +165,14 @@ ThreadTest4()
 //   threads and consumer threads.
 //----------------------------------------------------------------------
 
-Condition cond_full("cond_empty"), // producers wait on it
-                 cond_empty("cond_empty"); // consumers wait on it
+Condition cond_full("cond_full"), // producers wait on it
+        cond_empty("cond_empty"); // consumers wait on it
 Lock lock_pc("lock_pc");
 int num_product = 0; // number of products
 const int max_num_product = 15;
 
 // Produce 'turns' number of products, one at a time.
-void Produce(int turns) {
+void Produce_inTest5(int turns) {
     while (turns--)
     {
         ASSERT(num_product >= 0 && num_product <= max_num_product);
@@ -195,7 +195,7 @@ void Produce(int turns) {
 }
 
 // Consume 'turns' number of products, one at a time.
-void Consume(int turns) {
+void Consume_inTest5(int turns) {
     while (turns--)
     {
         ASSERT(num_product >= 0 && num_product <= max_num_product);
@@ -218,16 +218,72 @@ void Consume(int turns) {
 }
 
 void ThreadTest5() {
-    DEBUG('t', "Entering ThreadTest4");
+    DEBUG('t', "Entering ThreadTest5");
 
     Thread *p1 = new Thread("p1"), *p2 = new Thread("p2"),
            *c1 = new Thread("c1"), *c2 = new Thread("c2");
-    p1->Fork(Produce, 50);
-    p2->Fork(Produce, 50);
-    c1->Fork(Consume, 50);
-    c2->Fork(Consume, 50);
+    p1->Fork(Produce_inTest5, 50);
+    p2->Fork(Produce_inTest5, 50);
+    c1->Fork(Consume_inTest5, 50);
+    c2->Fork(Consume_inTest5, 50);
 }
 
+//----------------------------------------------------------------------
+// ThreadTest6
+// 	 Solve the Producer&Consumer problem using semaphore.
+//   Run Nachos with "-rs" to allow random switches between producer 
+//   threads and consumer threads.
+//----------------------------------------------------------------------
+
+Semaphore sem_full("sem_full", 0), 
+            // number of products yet to be consumed at this moment
+        sem_empty("sem_empty", max_num_product); 
+            // number of new products can be made at this moment
+
+// Produce 'turns' number of products, one at a time.
+void Produce_inTest6(int turns) {
+    while (turns--)
+    {
+        ASSERT(num_product >= 0 && num_product <= max_num_product);
+        sem_empty.P();
+        lock_pc.Acquire();	// enforce mutual exclusive access to the products
+
+        num_product++;
+        printf("#product = %d, \"%s\" just produced one product.\n",
+                    num_product, currentThread->getName());
+
+        lock_pc.Release();
+        sem_full.V();
+    }
+}
+
+// Consume 'turns' number of products, one at a time.
+void Consume_inTest6(int turns) {
+    while (turns--)
+    {
+        ASSERT(num_product >= 0 && num_product <= max_num_product);
+        sem_full.P();
+        lock_pc.Acquire();	// enforce mutual exclusive access to the products
+
+        num_product--;
+        printf("#product = %d, \"%s\" just consumed one product.\n",
+                    num_product, currentThread->getName());
+
+        lock_pc.Release();
+        sem_empty.V();
+    }
+}
+
+void ThreadTest6() {
+    DEBUG('t', "Entering ThreadTest6");
+
+    Thread *p1 = new Thread("p1"), *p2 = new Thread("p2"),
+           *c1 = new Thread("c1"), *c2 = new Thread("c2");
+    p1->Fork(Produce_inTest6, 50);
+    p2->Fork(Produce_inTest6, 50);
+    c1->Fork(Consume_inTest6, 50);
+    c2->Fork(Consume_inTest6, 50);
+}
 
 //----------------------------------------------------------------------
 // ThreadTest
@@ -256,6 +312,9 @@ ThreadTest()
 #endif
     case 5:
 	ThreadTest5();
+	break;
+    case 6:
+	ThreadTest6();
 	break;
     default:
 	printf("No test specified.\n");
