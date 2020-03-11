@@ -113,6 +113,8 @@ void Lock::Acquire()
 {
     IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
     
+    ASSERT(owner != currentThread); // make sure that
+                                // nested locking does not happen
     sem->P();
     owner = currentThread;
     
@@ -136,8 +138,62 @@ bool Lock::isHeldByCurrentThread()
     return owner == currentThread;
 }
 
-Condition::Condition(char* debugName) { }
-Condition::~Condition() { }
-void Condition::Wait(Lock* conditionLock) { ASSERT(FALSE); }
-void Condition::Signal(Lock* conditionLock) { }
-void Condition::Broadcast(Lock* conditionLock) { }
+Condition::Condition(char* debugName) 
+{
+    name = debugName;
+    queue = new List;
+}
+
+Condition::~Condition() 
+{
+    delete queue;
+}
+
+//----------------------------------------------------------------------
+// Condition::Wait
+// 	 Release the lock, relinquish the CPU until signaled, 
+//	 then re-acquire the lock.
+//----------------------------------------------------------------------
+void Condition::Wait(Lock* conditionLock) 
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+    
+    conditionLock->Release();
+	queue->Append((void *)currentThread);
+	currentThread->Sleep();
+    conditionLock->Acquire();
+    
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+
+//----------------------------------------------------------------------
+// Condition::Signal
+// 	 Wake up a thread (simply put the thread on the ready list), 
+//   if there are any waiting on the condition.
+//----------------------------------------------------------------------
+void Condition::Signal(Lock* conditionLock)
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff); // disable interrupts
+
+    Thread *thread = (Thread *)queue->Remove();
+    if (thread != NULL)	   // make thread ready
+	    scheduler->ReadyToRun(thread);
+
+    (void) interrupt->SetLevel(oldLevel); // re-enable interrupts
+}
+
+//----------------------------------------------------------------------
+// Condition::Broadcast
+//   Wake up all threads waiting on the condition by simply put 
+//   them on the ready list.
+//----------------------------------------------------------------------
+void Condition::Broadcast(Lock* conditionLock)
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff); // disable interrupts
+
+    Thread* thread;
+    while ((thread = (Thread *)queue->Remove()) != NULL)	   // make thread ready
+	    scheduler->ReadyToRun(thread);
+
+    (void) interrupt->SetLevel(oldLevel); // re-enable interrupts
+}
