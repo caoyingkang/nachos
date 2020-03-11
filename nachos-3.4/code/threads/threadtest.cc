@@ -285,6 +285,53 @@ void ThreadTest6() {
     c2->Fork(Consume_inTest6, 50);
 }
 
+
+//----------------------------------------------------------------------
+// ThreadTest7
+// 	 Implement barrier using condition variable.
+//----------------------------------------------------------------------
+
+Condition cond_barr("cond_barr");
+Lock lock_barr("lock_barr");
+int num_threads_reached = 0; // number of threads that have printed names
+
+void BarrierTest(int dummy) {
+    lock_barr.Acquire();	// enforce mutual exclusive access to the products
+
+    printf("%s\n", currentThread->getName());
+    num_threads_reached++;
+
+    while (num_threads_reached < 7) {
+        cond_barr.Wait(&lock_barr); // wait until all threads reach barrier
+    }
+    cond_barr.Broadcast(&lock_barr); // wake up all threads
+    lock_barr.Release();
+    // ---------
+    // This line is the barrier
+    // ---------
+    printf("我们是金刚葫芦娃！\n");
+}
+
+void ThreadTest7() {
+    DEBUG('t', "Entering ThreadTest7");
+
+    Thread *t1 = new Thread("我是大娃，我力大无穷，身体可以变大！"), 
+           *t2 = new Thread("我是二娃，我有千里眼、顺风耳！"),
+           *t3 = new Thread("我是三娃，我有铜头铁臂，刀枪不入！"), 
+           *t4 = new Thread("我是四娃，我会吐火，把妖怪烧个精光！"),
+           *t5 = new Thread("我是五娃，我会喷水，妖怪无处可躲！"),
+           *t6 = new Thread("我是六娃，我会隐身术，来无影去无踪！"),
+           *t7 = new Thread("我是七娃，我有宝葫芦，可以吸妖怪！");
+    t1->Fork(BarrierTest, 0);
+    t2->Fork(BarrierTest, 0);
+    t3->Fork(BarrierTest, 0);
+    t4->Fork(BarrierTest, 0);
+    t5->Fork(BarrierTest, 0);
+    t6->Fork(BarrierTest, 0);
+    t7->Fork(BarrierTest, 0);
+}
+
+
 //----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
@@ -315,6 +362,9 @@ ThreadTest()
 	break;
     case 6:
 	ThreadTest6();
+	break;
+    case 7:
+	ThreadTest7();
 	break;
     default:
 	printf("No test specified.\n");
