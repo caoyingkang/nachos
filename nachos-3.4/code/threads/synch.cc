@@ -97,13 +97,44 @@ Semaphore::V()
     (void) interrupt->SetLevel(oldLevel);
 }
 
-// Dummy functions -- so we can compile our later assignments 
-// Note -- without a correct implementation of Condition::Wait(), 
-// the test case in the network assignment won't work!
-Lock::Lock(char* debugName) {}
-Lock::~Lock() {}
-void Lock::Acquire() {}
-void Lock::Release() {}
+
+Lock::Lock(char* debugName)  
+{
+    name = debugName;
+    sem = new Semaphore("mutex", 1);
+    owner = NULL;
+}
+
+Lock::~Lock() {
+    delete sem;
+}
+
+void Lock::Acquire() 
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+    
+    sem->P();
+    owner = currentThread;
+    
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+
+void Lock::Release() 
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff); // disable interrupts
+
+    ASSERT(isHeldByCurrentThread()); // only the thread who acquired 
+                                    // this lock can release it
+    sem->V();
+    owner = NULL;
+
+    (void) interrupt->SetLevel(oldLevel); // re-enable interrupts
+}
+
+bool Lock::isHeldByCurrentThread()
+{
+    return owner == currentThread;
+}
 
 Condition::Condition(char* debugName) { }
 Condition::~Condition() { }
