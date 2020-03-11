@@ -46,9 +46,9 @@
 #endif
 
 // choose the scheduler algo here
-// #define SCHED_NAIVE // naive sched: FIFO, omitting priority
+ #define SCHED_NAIVE // naive sched: FIFO, omitting priority
 // #define SCHED_PRI_PRMPT // preemptive sched based on priority
- #define SCHED_RR // Round-Robin
+// #define SCHED_RR // Round-Robin
 
 // CPU register state to be saved on context switch.  
 // The SPARC and MIPS only need 10 registers, but the Snake needs 18.
