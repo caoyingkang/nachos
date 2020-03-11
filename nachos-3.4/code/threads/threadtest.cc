@@ -134,12 +134,10 @@ void FakeSysCall(int dummy){
     int i = 0;
     while (stats->totalTicks < timeToQuit)
     {
-        if (i%50==0)
-        printf("*** thread \"%s\" (tid=%d) looped %d times\n", 
-            currentThread->getName(), currentThread->getThreadID(), i);
+        printf("*** thread \"%s\" looped %d times\n", 
+            currentThread->getName(), i++);
         interrupt->SetLevel(IntOff);
         interrupt->SetLevel(IntOn);
-        ++i;
     }
 }
 
