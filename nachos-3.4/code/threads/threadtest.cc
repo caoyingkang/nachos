@@ -222,10 +222,10 @@ void ThreadTest5() {
 
     Thread *p1 = new Thread("p1"), *p2 = new Thread("p2"),
            *c1 = new Thread("c1"), *c2 = new Thread("c2");
-    p1->Fork(Produce_inTest5, 50);
-    p2->Fork(Produce_inTest5, 50);
-    c1->Fork(Consume_inTest5, 50);
-    c2->Fork(Consume_inTest5, 50);
+    p1->Fork(Produce_inTest5, 20);
+    p2->Fork(Produce_inTest5, 20);
+    c1->Fork(Consume_inTest5, 20);
+    c2->Fork(Consume_inTest5, 20);
 }
 
 //----------------------------------------------------------------------
@@ -279,10 +279,10 @@ void ThreadTest6() {
 
     Thread *p1 = new Thread("p1"), *p2 = new Thread("p2"),
            *c1 = new Thread("c1"), *c2 = new Thread("c2");
-    p1->Fork(Produce_inTest6, 50);
-    p2->Fork(Produce_inTest6, 50);
-    c1->Fork(Consume_inTest6, 50);
-    c2->Fork(Consume_inTest6, 50);
+    p1->Fork(Produce_inTest6, 20);
+    p2->Fork(Produce_inTest6, 20);
+    c1->Fork(Consume_inTest6, 20);
+    c2->Fork(Consume_inTest6, 20);
 }
 
 
@@ -296,19 +296,18 @@ Lock lock_barr("lock_barr");
 int num_threads_reached = 0; // number of threads that have printed names
 
 void BarrierTest(int dummy) {
-    lock_barr.Acquire();	// enforce mutual exclusive access to the products
-
     printf("%s\n", currentThread->getName());
-    num_threads_reached++;
 
+    // ---------This line is the barrier---------
+    lock_barr.Acquire();	// enforce mutual exclusive access to the products
+    num_threads_reached++;
     while (num_threads_reached < 7) {
         cond_barr.Wait(&lock_barr); // wait until all threads reach barrier
     }
     cond_barr.Broadcast(&lock_barr); // wake up all threads
     lock_barr.Release();
-    // ---------
-    // This line is the barrier
-    // ---------
+    // ---------End of the barrier---------
+
     printf("我们是金刚葫芦娃！\n");
 }
 
