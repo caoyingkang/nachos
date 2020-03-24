@@ -24,5 +24,11 @@
 		{
 			"path": "vm"
 		}
-	]
+	],
+	"settings": {
+		"files.associations": {
+			"cstdlib": "cpp",
+			"syscall.h": "c"
+		}
+	}
 }

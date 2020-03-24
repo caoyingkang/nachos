@@ -48,16 +48,61 @@
 //	are in machine.h.
 //----------------------------------------------------------------------
 
+int mmp=0;
+
 void
 ExceptionHandler(ExceptionType which)
 {
     int type = machine->ReadRegister(2);
 
-    if ((which == SyscallException) && (type == SC_Halt)) {
-	DEBUG('a', "Shutdown, initiated by user program.\n");
-   	interrupt->Halt();
-    } else {
-	printf("Unexpected user mode exception %d %d\n", which, type);
-	ASSERT(FALSE);
-    }
+    if (which == SyscallException) {
+        if (type == SC_Halt) {
+            DEBUG('a', "Shutdown, initiated by user program.\n");
+            interrupt->Halt();
+        } // SC_Halt
+        else {
+            printf("Unimplemented syscall!\n");
+            ASSERT(FALSE);
+        }
+
+    } // SyscallException
+    
+    else if (which == PageFaultException) {
+        if (machine->tlb == NULL) { // Use page table
+	        ASSERT(FALSE);
+            // TODO
+        } else { // Use TLB
+            int virtAddr = machine->ReadRegister(BadVAddrReg);
+            unsigned int vpn = (unsigned) virtAddr / PageSize;
+            TranslationEntry *entry = NULL;
+            for (int i = 0; i < TLBSize; i++) // search any invalid entry in TLB
+    	        if (!machine->tlb[i].valid) {
+                    entry = &machine->tlb[i]; // FOUND!
+                    break;
+                }
+            if (entry != NULL) { // FOUND!
+                // entry->virtualPage = vpn;
+                // entry->physicalPage = vpn;
+                // entry->valid = true;
+                // entry->readOnly = false;
+                // entry->use = false;
+                // entry->dirty = false;
+                memcpy((void *)entry, (void *)&machine->pageTable[vpn], 
+                       sizeof(TranslationEntry));
+            } else { // replace one TLB entry
+                entry = &machine->tlb[(mmp++)%TLBSize];
+                printf("# of replacing: %d\n",mmp);
+                // entry->virtualPage = vpn;
+                // entry->physicalPage = vpn;
+                // entry->valid = true;
+                // entry->readOnly = false;
+                // entry->use = false;
+                // entry->dirty = false;
+                memcpy((void *)&machine->pageTable[entry->virtualPage], 
+                       (void *)entry, sizeof(TranslationEntry));
+                memcpy((void *)entry, (void *)&machine->pageTable[vpn], 
+                       sizeof(TranslationEntry));
+            }
+        }
+    } // PageFaultException
 }
