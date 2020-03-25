@@ -27,8 +27,8 @@
 #include "disk.h"
 
 // Choose the strategy to use when TLB miss happens
-#define TLB_FIFO
-//#define TLB_LRU
+//#define TLB_FIFO
+#define TLB_LRU
 
 // Definitions related to the size, and format of user memory
 

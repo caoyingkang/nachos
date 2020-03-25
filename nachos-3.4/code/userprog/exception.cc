@@ -56,8 +56,8 @@ ExceptionHandler(ExceptionType which)
         if (type == SC_Halt) {
             DEBUG('a', "Shutdown, initiated by user program.\n");
 #ifdef USE_TLB
-            printf("Total times address translation takes place: %d\n", 
-                    machine->tlb_lookup_cnt);
+            // printf("Total times address translation takes place: %d\n", 
+            //         machine->tlb_lookup_cnt);
             printf("Total times TLB miss happens: %d\n", 
                     machine->tlb_miss_cnt);
 #endif // USE_TLB
