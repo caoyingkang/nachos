@@ -26,6 +26,10 @@
 #include "translate.h"
 #include "disk.h"
 
+// Choose the strategy to use when TLB miss happens
+//#define TLB_FIFO
+#define TLB_LRU
+
 // Definitions related to the size, and format of user memory
 
 #define PageSize 	SectorSize 	// set the page size equal to
@@ -181,6 +185,17 @@ class Machine {
 
     TranslationEntry *pageTable;
     unsigned int pageTableSize;
+
+#ifdef USE_TLB
+#ifdef TLB_FIFO
+	int tlb_next_repl; // the idx of TLB entry that is to be replaced the
+			// next time TLB miss happens and all entries in TLB are valid
+#else // TLB_LRU
+	int tlb_lru[TLBSize]; // tlb_lru[0] is the least recently used (i.e. the one 
+			// to be replaced), while tlb_lru[TLBSize-1] is the most recently used.
+			// Note: initialized to all -1, representing invaid entry.
+#endif // TLB_FIFO
+#endif // USE_TLB
 
   private:
     bool singleStep;		// drop back into the debugger after each

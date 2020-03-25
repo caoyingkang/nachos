@@ -66,10 +66,16 @@ Machine::Machine(bool debug)
     for (i = 0; i < TLBSize; i++)
 	tlb[i].valid = FALSE;
     pageTable = NULL;
-#else	// use linear page table
+#ifdef TLB_FIFO
+	tlb_next_repl = 0;
+#else // TLB_LRU
+	for (i = 0; i < TLBSize; i++)
+        tlb_lru[i] = -1;
+#endif // TLB_FIFO
+#else // use linear page table
     tlb = NULL;
     pageTable = NULL;
-#endif
+#endif // USE_TLB
 
     singleStep = debug;
     CheckEndian();

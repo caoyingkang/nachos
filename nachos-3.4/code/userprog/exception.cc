@@ -48,7 +48,7 @@
 //	are in machine.h.
 //----------------------------------------------------------------------
 
-int mmp=0;
+static int TLB_miss_times = 0;
 
 void
 ExceptionHandler(ExceptionType which)
@@ -68,41 +68,60 @@ ExceptionHandler(ExceptionType which)
     } // SyscallException
     
     else if (which == PageFaultException) {
-        if (machine->tlb == NULL) { // Use page table
-	        ASSERT(FALSE);
-            // TODO
-        } else { // Use TLB
-            int virtAddr = machine->ReadRegister(BadVAddrReg);
-            unsigned int vpn = (unsigned) virtAddr / PageSize;
-            TranslationEntry *entry = NULL;
-            for (int i = 0; i < TLBSize; i++) // search any invalid entry in TLB
-    	        if (!machine->tlb[i].valid) {
-                    entry = &machine->tlb[i]; // FOUND!
+#ifdef USE_TLB
+        printf("TLB miss times: %d\n",++TLB_miss_times);
+        int virtAddr = machine->ReadRegister(BadVAddrReg);
+        unsigned int vpn = (unsigned) virtAddr / PageSize;
+        TranslationEntry *entry = NULL;
+        int i = 0;
+        for (; i < TLBSize; i++) // search any invalid entry in TLB
+            if (!machine->tlb[i].valid) {
+                entry = &machine->tlb[i]; // FOUND!
+                break;
+            }
+        if (entry != NULL) { // found an invalid entry
+
+#ifdef TLB_LRU // update tlb_lru
+            int j;
+            for (j = 0; j < TLBSize; j++) {
+                if (machine->tlb_lru[j] == -1) { 
+                    machine->tlb_lru[j] = i;
                     break;
                 }
-            if (entry != NULL) { // FOUND!
-                // entry->virtualPage = vpn;
-                // entry->physicalPage = vpn;
-                // entry->valid = true;
-                // entry->readOnly = false;
-                // entry->use = false;
-                // entry->dirty = false;
-                memcpy((void *)entry, (void *)&machine->pageTable[vpn], 
-                       sizeof(TranslationEntry));
-            } else { // replace one TLB entry
-                entry = &machine->tlb[(mmp++)%TLBSize];
-                printf("# of replacing: %d\n",mmp);
-                // entry->virtualPage = vpn;
-                // entry->physicalPage = vpn;
-                // entry->valid = true;
-                // entry->readOnly = false;
-                // entry->use = false;
-                // entry->dirty = false;
-                memcpy((void *)&machine->pageTable[entry->virtualPage], 
-                       (void *)entry, sizeof(TranslationEntry));
-                memcpy((void *)entry, (void *)&machine->pageTable[vpn], 
-                       sizeof(TranslationEntry));
             }
+            ASSERT(j < TLBSize); // must found one tlb_lru elem
+#endif // TLB_LRU 
+
+            // entry->virtualPage = vpn;
+            // entry->physicalPage = vpn;
+            // entry->valid = true;
+            // entry->readOnly = false;
+            // entry->use = false;
+            // entry->dirty = false;
+            memcpy((void *)entry, (void *)&machine->pageTable[vpn], 
+                    sizeof(TranslationEntry));
+        } else { // replace one TLB entry
+
+#ifdef TLB_FIFO
+            entry = &machine->tlb[machine->tlb_next_repl];
+            machine->tlb_next_repl = (machine->tlb_next_repl + 1) % TLBSize;
+#else // TLB_LRU
+            entry = &machine->tlb[machine->tlb_lru[0]];
+#endif // TLB_FIFO
+
+            // entry->virtualPage = vpn;
+            // entry->physicalPage = vpn;
+            // entry->valid = true;
+            // entry->readOnly = false;
+            // entry->use = false;
+            // entry->dirty = false;
+            memcpy((void *)&machine->pageTable[entry->virtualPage], 
+                    (void *)entry, sizeof(TranslationEntry));
+            memcpy((void *)entry, (void *)&machine->pageTable[vpn], 
+                    sizeof(TranslationEntry));
         }
+#else // Linear Page Table
+        ASSERT(FALSE);
+#endif // USE_TLB
     } // PageFaultException
 }
