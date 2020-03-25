@@ -47,9 +47,6 @@
 //	"which" is the kind of exception.  The list of possible exceptions 
 //	are in machine.h.
 //----------------------------------------------------------------------
-
-static int TLB_miss_times = 0;
-
 void
 ExceptionHandler(ExceptionType which)
 {
@@ -58,6 +55,12 @@ ExceptionHandler(ExceptionType which)
     if (which == SyscallException) {
         if (type == SC_Halt) {
             DEBUG('a', "Shutdown, initiated by user program.\n");
+#ifdef USE_TLB
+            printf("Total times address translation takes place: %d\n", 
+                    machine->tlb_lookup_cnt);
+            printf("Total times TLB miss happens: %d\n", 
+                    machine->tlb_miss_cnt);
+#endif // USE_TLB
             interrupt->Halt();
         } // SC_Halt
         else {
@@ -69,7 +72,7 @@ ExceptionHandler(ExceptionType which)
     
     else if (which == PageFaultException) {
 #ifdef USE_TLB
-        printf("TLB miss times: %d\n",++TLB_miss_times);
+        machine->tlb_miss_cnt++;
         int virtAddr = machine->ReadRegister(BadVAddrReg);
         unsigned int vpn = (unsigned) virtAddr / PageSize;
         TranslationEntry *entry = NULL;

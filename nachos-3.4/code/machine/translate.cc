@@ -219,6 +219,7 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
         for (entry = NULL, i = 0; i < TLBSize; i++)
     	    if (tlb[i].valid && (tlb[i].virtualPage == vpn)) {
 				entry = &tlb[i];			// FOUND!
+				tlb_lookup_cnt++;
 #ifdef TLB_LRU // update tlb_lru
 				int rear, j = TLBSize - 1;
 				while (tlb_lru[j] == -1) j--;

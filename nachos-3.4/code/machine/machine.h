@@ -27,8 +27,8 @@
 #include "disk.h"
 
 // Choose the strategy to use when TLB miss happens
-//#define TLB_FIFO
-#define TLB_LRU
+#define TLB_FIFO
+//#define TLB_LRU
 
 // Definitions related to the size, and format of user memory
 
@@ -187,6 +187,9 @@ class Machine {
     unsigned int pageTableSize;
 
 #ifdef USE_TLB
+	int tlb_lookup_cnt; // total times TLB is looked up, i.e. the total times 
+					// address translation takes place
+	int tlb_miss_cnt; // total times TLB misses
 #ifdef TLB_FIFO
 	int tlb_next_repl; // the idx of TLB entry that is to be replaced the
 			// next time TLB miss happens and all entries in TLB are valid

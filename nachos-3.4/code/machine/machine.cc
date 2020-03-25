@@ -66,6 +66,8 @@ Machine::Machine(bool debug)
     for (i = 0; i < TLBSize; i++)
 	tlb[i].valid = FALSE;
     pageTable = NULL;
+    tlb_lookup_cnt = 0;
+    tlb_miss_cnt = 0;
 #ifdef TLB_FIFO
 	tlb_next_repl = 0;
 #else // TLB_LRU
