@@ -184,8 +184,12 @@ class Machine {
     TranslationEntry *tlb;		// this pointer should be considered 
 					// "read-only" to Nachos kernel code
 
+#ifdef INV_PG // use global inverted page table, thus support VM.
+    TranslationEntry invPageTable[NumPhysPages];
+#else // use normal page table, one per user prog. do not support VM.
     TranslationEntry *pageTable;
     unsigned int pageTableSize;
+#endif // INV_PG
 
 	BitMap *mem_bmp; // bitmap recording the usage of memory page frames
 

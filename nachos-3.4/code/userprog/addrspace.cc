@@ -63,7 +63,7 @@ SwapHeader (NoffHeader *noffH)
 AddrSpace::AddrSpace(OpenFile *executable)
 {
     NoffHeader noffH;
-    unsigned int i, size;
+    int i;
 
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if ((noffH.noffMagic != NOFFMAGIC) && 
@@ -71,44 +71,35 @@ AddrSpace::AddrSpace(OpenFile *executable)
     	SwapHeader(&noffH);
     ASSERT(noffH.noffMagic == NOFFMAGIC);
 
-// how big is address space?
-    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
+// set up the translation, and copy the code and data segments into memory
+#ifdef INV_PG // use global inverted page table, thus support VM.
+    // Really, there is nothing to do, since we are applying lazy loading
+#else // use normal page table, one per user prog. do not support VM.
+    unsigned int size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
 			+ UserStackSize;	// we need to increase the size
 						// to leave room for the stack
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
-
-    ASSERT(numPages <= NumPhysPages);		// check we're not trying
-						// to run anything too big --
-						// at least until we have
-						// virtual memory
-
+    ASSERT(numPages <= machine->mem_bmp->NumClear()); // make sure there is 
+                                    // enough memory for this user prog
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
-// first, set up the translation 
+
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
         pageTable[i].virtualPage = i;
-        int physpg = machine->mem_bmp->Find();
-        if (physpg == -1) {
-            printf("Not enough memory!\n");
-            ASSERT(false);
-        }
-        pageTable[i].physicalPage = physpg;
+        int ppn = machine->mem_bmp->Find();
+        ASSERT(ppn != -1);
+        pageTable[i].physicalPage = ppn;
         pageTable[i].valid = TRUE;
         pageTable[i].use = FALSE;
         pageTable[i].dirty = FALSE;
-        pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
-                        // a separate page, we could set its 
-                        // pages to be read-only
-        bzero(&machine->mainMemory[physpg * PageSize], PageSize);
+        pageTable[i].readOnly = FALSE;
+        bzero(&machine->mainMemory[ppn * PageSize], PageSize);
                 // zero out the address space, to zero the unitialized 
                 // data segment and the stack segment
     }
 
-    machine->mem_bmp->Print();
-
-// then, copy in the code and data segments into memory
     if (noffH.code.size > 0) {
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
@@ -121,6 +112,9 @@ AddrSpace::AddrSpace(OpenFile *executable)
             executable->ReadAt(
                 &(machine->mainMemory[pageTable[vpn].physicalPage * PageSize + offset]),
 			    block_size, pos);
+            if (block_size == PageSize) {       // if this page contains only codes,
+                pageTable[vpn].readOnly = TRUE; // we could set it to be read-only.
+            }
             sz -= block_size;
             pos += block_size;
             vpn++;
@@ -145,6 +139,10 @@ AddrSpace::AddrSpace(OpenFile *executable)
             offset = 0;
         }
     }
+#endif // INV_PG
+
+    // debug msg
+    machine->mem_bmp->Print();
 
     tlb_lookup_cnt = 0;
     tlb_miss_cnt = 0;

@@ -72,7 +72,14 @@ Machine::Machine(bool debug)
     tlb = NULL;
 #endif // USE_TLB
 
-    pageTable = NULL;
+#ifdef INV_PG // use global inverted page table, thus support VM.
+    for (i = 0; i < NumPhysPages; i++) {
+        pageTable[i].physicalPage = i;
+        pageTable[i].valid = FALSE;
+    }
+#else // use normal page table, one per user prog. do not support VM.
+    pageTable = NULL; // to be set in AddrSpace::RestoreState
+#endif // INV_PG
 
     singleStep = debug;
     CheckEndian();

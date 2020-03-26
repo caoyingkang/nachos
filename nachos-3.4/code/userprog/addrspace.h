@@ -38,10 +38,12 @@ class AddrSpace {
 #endif // USE_TLB
 
   private:
-    TranslationEntry *pageTable;	// Assume linear page table translation
-					// for now!
+
+#ifndef INV_PG // use normal page table, one per user prog. do not support VM.
+    TranslationEntry *pageTable;
     unsigned int numPages;		// Number of pages in the virtual 
 					// address space
+#endif
 };
 
 #endif // ADDRSPACE_H

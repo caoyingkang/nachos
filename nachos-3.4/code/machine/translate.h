@@ -40,6 +40,11 @@ class TranslationEntry {
 			// page is referenced or modified.
     bool dirty;         // This bit is set by the hardware every time the
 			// page is modified.
+
+#ifdef INV_PG
+    int pid; // process owning this inverted page table entry
+#endif // INV_PG
+
 };
 
 #endif
