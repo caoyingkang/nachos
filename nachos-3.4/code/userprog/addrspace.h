@@ -38,11 +38,10 @@ class AddrSpace {
 #endif // USE_TLB
 
   private:
-
+    unsigned int numPages; // Number of pages in the virtual 
+					                // address space
 #ifndef INV_PG // use normal page table, one per user prog. do not support VM.
     TranslationEntry *pageTable;
-    unsigned int numPages;		// Number of pages in the virtual 
-					// address space
 #endif
 };
 

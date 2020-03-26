@@ -64,6 +64,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
 {
     NoffHeader noffH;
     int i;
+    unsigned int size;
 
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if ((noffH.noffMagic != NOFFMAGIC) && 
@@ -71,19 +72,20 @@ AddrSpace::AddrSpace(OpenFile *executable)
     	SwapHeader(&noffH);
     ASSERT(noffH.noffMagic == NOFFMAGIC);
 
-// set up the translation, and copy the code and data segments into memory
-#ifdef INV_PG // use global inverted page table, thus support VM.
-    // Really, there is nothing to do, since we are applying lazy loading
-#else // use normal page table, one per user prog. do not support VM.
-    unsigned int size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
+    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
 			+ UserStackSize;	// we need to increase the size
 						// to leave room for the stack
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
-    ASSERT(numPages <= machine->mem_bmp->NumClear()); // make sure there is 
-                                    // enough memory for this user prog
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
+
+// set up the translation, and copy the code and data segments into memory
+#ifdef INV_PG // use global inverted page table, thus support VM.
+    // Really, there is nothing to do, since we are applying lazy loading
+#else // use normal page table, one per user prog. do not support VM.
+    ASSERT(numPages <= machine->mem_bmp->NumClear()); // make sure there is 
+                                    // enough memory for this user prog
 
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
@@ -216,8 +218,10 @@ void AddrSpace::SaveState()
 
 void AddrSpace::RestoreState() 
 {
+#ifndef INV_PG // use normal page table, one per user prog. do not support VM.
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
+#endif // INV_PG
 
 #ifdef USE_TLB
     for (int i = 0; i < TLBSize; i++) // flush TLB
