@@ -9,7 +9,7 @@
 
 #include "syscall.h"
 //#define NUM_ELEMS_A 1024 // size of physical memory; with code, we'll run out of space!
-#define NUM_ELEMS_A 100
+#define NUM_ELEMS_A 50
 
 int A[NUM_ELEMS_A];	
 
@@ -32,8 +32,6 @@ main()
             }
         }
     }
-    
-    Halt();
-    
-    //Exit(A[0]); // and then we're done -- should be 0!
+        
+    Exit(A[0]); // and then we're done -- should be 0!
 }

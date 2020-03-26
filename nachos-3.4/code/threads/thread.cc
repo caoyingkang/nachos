@@ -191,6 +191,11 @@ Thread::Finish ()
     
     DEBUG('t', "Finishing thread \"%s\"\n", getName());
     
+#ifdef USER_PROGRAM
+    printf("Deallocating AddrSpace of thread \"%s\"\n", name);
+    delete space;
+#endif // USER_PROGRAM
+
     totalNum--;
     tidAssigned[tID] = false;
     tid2ptr[tID] = NULL;

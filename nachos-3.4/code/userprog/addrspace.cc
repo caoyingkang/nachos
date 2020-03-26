@@ -146,16 +146,18 @@ AddrSpace::AddrSpace(OpenFile *executable)
         }
     }
 
+    tlb_lookup_cnt = 0;
+    tlb_miss_cnt = 0;
+
 }
 
 //----------------------------------------------------------------------
 // AddrSpace::~AddrSpace
-// 	Dealloate an address space.  /// But where the deallocation is called???
+// 	Dealloate an address space.
 //----------------------------------------------------------------------
 
 AddrSpace::~AddrSpace()
 {
-    printf("Deallocating AddrSpace\n");
     // clear memory bitmap
     for (int i = 0; i < numPages; i++)
         machine->mem_bmp->Clear(pageTable[i].physicalPage);
@@ -218,4 +220,18 @@ void AddrSpace::RestoreState()
 {
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
+
+#ifdef USE_TLB
+    for (int i = 0; i < TLBSize; i++) // flush TLB
+        machine->tlb[i].valid = false;
+
+    // reset TLB repl-algo-dependent variables
+#ifdef TLB_FIFO
+	machine->tlb_next_repl = 0;
+#else // TLB_LRU
+	for (int i = 0; i < TLBSize; i++)
+        machine->tlb_lru[i] = -1;
+#endif // TLB_FIFO
+
+#endif // USE_TLB
 }

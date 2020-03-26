@@ -29,7 +29,13 @@ class AddrSpace {
 					// before jumping to user code
 
     void SaveState();			// Save/restore address space-specific
-    void RestoreState();		// info on a context switch 
+    void RestoreState();		// info on a context switch
+
+#ifdef USE_TLB
+    int tlb_lookup_cnt; // total times TLB is looked up (i.e. the total times 
+					// address translation takes place) in this user program
+	  int tlb_miss_cnt; // total times TLB misses in this user program
+#endif // USE_TLB
 
   private:
     TranslationEntry *pageTable;	// Assume linear page table translation

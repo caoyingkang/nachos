@@ -67,20 +67,12 @@ Machine::Machine(bool debug)
 #ifdef USE_TLB
     tlb = new TranslationEntry[TLBSize];
     for (i = 0; i < TLBSize; i++)
-	tlb[i].valid = FALSE;
-    pageTable = NULL;
-    tlb_lookup_cnt = 0;
-    tlb_miss_cnt = 0;
-#ifdef TLB_FIFO
-	tlb_next_repl = 0;
-#else // TLB_LRU
-	for (i = 0; i < TLBSize; i++)
-        tlb_lru[i] = -1;
-#endif // TLB_FIFO
+	    tlb[i].valid = FALSE;
 #else // use linear page table
     tlb = NULL;
-    pageTable = NULL;
 #endif // USE_TLB
+
+    pageTable = NULL;
 
     singleStep = debug;
     CheckEndian();

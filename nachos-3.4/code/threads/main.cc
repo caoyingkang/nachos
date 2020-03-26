@@ -78,6 +78,13 @@ extern void MailTest(int networkID);
 //		ex: "nachos -d +" -> argv = {"nachos", "-d", "+"}
 //----------------------------------------------------------------------
 
+/////////////////////////////////////////////
+// test multiprogramming without SC_Exec
+void StartSortProg(int dummy) {
+	StartProcess("sort");
+}
+/////////////////////////////////////////////
+
 int
 main(int argc, char **argv)
 {
@@ -111,6 +118,13 @@ main(int argc, char **argv)
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
 	    ASSERT(argc > 1);
+
+/////////////////////////////////////////////
+// test multiprogramming without SC_Exec
+			Thread *t = new Thread("forked");
+			t->Fork(StartSortProg, 0);
+/////////////////////////////////////////////
+
             StartProcess(*(argv + 1));
             argCount = 2;
         } else if (!strcmp(*argv, "-c")) {      // test the console

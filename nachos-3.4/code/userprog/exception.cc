@@ -53,26 +53,35 @@ ExceptionHandler(ExceptionType which)
     int type = machine->ReadRegister(2);
 
     if (which == SyscallException) {
-        if (type == SC_Halt) {
+        switch (type) 
+        {
+        case SC_Halt:
             DEBUG('a', "Shutdown, initiated by user program.\n");
 #ifdef USE_TLB
             // printf("Total times address translation takes place: %d\n", 
-            //         machine->tlb_lookup_cnt);
+            //         currentThread->space->tlb_lookup_cnt);
             printf("Total times TLB miss happens: %d\n", 
-                    machine->tlb_miss_cnt);
+                    currentThread->space->tlb_miss_cnt);
 #endif // USE_TLB
             interrupt->Halt();
-        } // SC_Halt
-        else {
+            break; // never reached
+        
+        case SC_Exit:
+            int arg1 = machine->ReadRegister(4);
+            printf("Exiting user program with code: %d\n", arg1);
+            currentThread->Finish();
+            break; // never reached
+            
+        default:
             printf("Unimplemented syscall!\n");
             ASSERT(FALSE);
+            break;
         }
-
     } // SyscallException
     
     else if (which == PageFaultException) {
 #ifdef USE_TLB
-        machine->tlb_miss_cnt++;
+        currentThread->space->tlb_miss_cnt++;
         int virtAddr = machine->ReadRegister(BadVAddrReg);
         unsigned int vpn = (unsigned) virtAddr / PageSize;
         TranslationEntry *entry = NULL;

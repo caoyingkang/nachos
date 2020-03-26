@@ -109,12 +109,12 @@ Scheduler::Run (Thread *nextThread)
 {
     Thread *oldThread = currentThread;
     
-#ifdef USER_PROGRAM			// ignore until running user programs 
+#ifdef USER_PROGRAM
     if (currentThread->space != NULL) {	// if this thread is a user program,
         currentThread->SaveUserState(); // save the user's CPU registers
-	currentThread->space->SaveState();
+	    currentThread->space->SaveState();
     }
-#endif
+#endif // USER_PROGRAM
     
     oldThread->CheckOverflow();		    // check if the old thread
 					    // had an undetected stack overflow
@@ -148,11 +148,11 @@ Scheduler::Run (Thread *nextThread)
 #endif
     
 #ifdef USER_PROGRAM
-    if (currentThread->space != NULL) {		// if there is an address space
-        currentThread->RestoreUserState();     // to restore, do it.
-	currentThread->space->RestoreState();
+    if (currentThread->space != NULL) {	// if there is an address space
+        currentThread->RestoreUserState(); // to restore, do it.
+	    currentThread->space->RestoreState();
     }
-#endif
+#endif // USER_PROGRAM
 }
 
 //----------------------------------------------------------------------

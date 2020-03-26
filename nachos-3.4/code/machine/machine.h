@@ -189,17 +189,17 @@ class Machine {
 
 	BitMap *mem_bmp; // bitmap recording the usage of memory page frames
 
+// TLB replacement algorithm dependent variables
 #ifdef USE_TLB
-	int tlb_lookup_cnt; // total times TLB is looked up, i.e. the total times 
-					// address translation takes place
-	int tlb_miss_cnt; // total times TLB misses
 #ifdef TLB_FIFO
 	int tlb_next_repl; // the idx of TLB entry that is to be replaced the
-			// next time TLB miss happens and all entries in TLB are valid
+			// next time TLB miss happens and all entries in TLB are valid.
+			// Initialized in AddrSpace::RestoreState
 #else // TLB_LRU
 	int tlb_lru[TLBSize]; // tlb_lru[0] is the least recently used (i.e. the one 
 			// to be replaced), while tlb_lru[TLBSize-1] is the most recently used.
 			// Note: initialized to all -1, representing invaid entry.
+			// Initialized in AddrSpace::RestoreState
 #endif // TLB_FIFO
 #endif // USE_TLB
 
