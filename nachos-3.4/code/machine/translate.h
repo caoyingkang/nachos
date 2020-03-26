@@ -42,7 +42,7 @@ class TranslationEntry {
 			// page is modified.
 
 #ifdef INV_PG
-    int pid; // process owning this inverted page table entry
+    int tid; // thread owning this inverted page table entry
 #endif // INV_PG
 
 };

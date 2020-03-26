@@ -37,9 +37,10 @@ class AddrSpace {
 	  int tlb_miss_cnt; // total times TLB misses in this user program
 #endif // USE_TLB
 
-  private:
     unsigned int numPages; // Number of pages in the virtual 
 					                // address space
+
+  private:
 #ifndef INV_PG // use normal page table, one per user prog. do not support VM.
     TranslationEntry *pageTable;
 #endif
