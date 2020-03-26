@@ -101,8 +101,9 @@ ExceptionHandler(ExceptionType which)
             // entry->readOnly = false;
             // entry->use = false;
             // entry->dirty = false;
-            memcpy((void *)entry, (void *)&machine->pageTable[vpn], 
-                    sizeof(TranslationEntry));
+            *entry = machine->pageTable[vpn];
+            // memcpy((void *)entry, (void *)&machine->pageTable[vpn], 
+            //         sizeof(TranslationEntry));
         } else { // replace one TLB entry
 
 #ifdef TLB_FIFO
@@ -118,10 +119,12 @@ ExceptionHandler(ExceptionType which)
             // entry->readOnly = false;
             // entry->use = false;
             // entry->dirty = false;
-            memcpy((void *)&machine->pageTable[entry->virtualPage], 
-                    (void *)entry, sizeof(TranslationEntry));
-            memcpy((void *)entry, (void *)&machine->pageTable[vpn], 
-                    sizeof(TranslationEntry));
+            machine->pageTable[entry->virtualPage] = *entry;
+            *entry = machine->pageTable[vpn];
+            // memcpy((void *)&machine->pageTable[entry->virtualPage], 
+            //         (void *)entry, sizeof(TranslationEntry));
+            // memcpy((void *)entry, (void *)&machine->pageTable[vpn], 
+            //         sizeof(TranslationEntry));
         }
 #else // Linear Page Table
         ASSERT(FALSE);

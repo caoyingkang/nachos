@@ -61,6 +61,9 @@ Machine::Machine(bool debug)
     mainMemory = new char[MemorySize];
     for (i = 0; i < MemorySize; i++)
       	mainMemory[i] = 0;
+
+    mem_bmp = new BitMap(NumPhysPages); // all bits are cleared      
+    
 #ifdef USE_TLB
     tlb = new TranslationEntry[TLBSize];
     for (i = 0; i < TLBSize; i++)
@@ -91,6 +94,7 @@ Machine::Machine(bool debug)
 Machine::~Machine()
 {
     delete [] mainMemory;
+    delete mem_bmp;
     if (tlb != NULL)
         delete [] tlb;
 }

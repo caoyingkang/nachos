@@ -88,44 +88,79 @@ AddrSpace::AddrSpace(OpenFile *executable)
 // first, set up the translation 
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
-	pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-	pageTable[i].physicalPage = i;
-	pageTable[i].valid = TRUE;
-	pageTable[i].use = FALSE;
-	pageTable[i].dirty = FALSE;
-	pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
-					// a separate page, we could set its 
-					// pages to be read-only
+        pageTable[i].virtualPage = i;
+        int physpg = machine->mem_bmp->Find();
+        if (physpg == -1) {
+            printf("Not enough memory!\n");
+            ASSERT(false);
+        }
+        pageTable[i].physicalPage = physpg;
+        pageTable[i].valid = TRUE;
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
+                        // a separate page, we could set its 
+                        // pages to be read-only
+        bzero(&machine->mainMemory[physpg * PageSize], PageSize);
+                // zero out the address space, to zero the unitialized 
+                // data segment and the stack segment
     }
-    
-// zero out the entire address space, to zero the unitialized data segment 
-// and the stack segment
-    bzero(machine->mainMemory, size);
+
+    machine->mem_bmp->Print();
 
 // then, copy in the code and data segments into memory
     if (noffH.code.size > 0) {
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
-        executable->ReadAt(&(machine->mainMemory[noffH.code.virtualAddr]),
-			noffH.code.size, noffH.code.inFileAddr);
+        int sz = noffH.code.size, // remaining sizes in file to be read
+            pos = noffH.code.inFileAddr; // position within the file
+        unsigned int vpn = (unsigned) noffH.code.virtualAddr / PageSize,
+                     offset = (unsigned) noffH.code.virtualAddr % PageSize;
+        while (sz > 0) {
+            int block_size = min(PageSize - offset, sz);
+            executable->ReadAt(
+                &(machine->mainMemory[pageTable[vpn].physicalPage * PageSize + offset]),
+			    block_size, pos);
+            sz -= block_size;
+            pos += block_size;
+            vpn++;
+            offset = 0;
+        }
     }
     if (noffH.initData.size > 0) {
         DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
 			noffH.initData.virtualAddr, noffH.initData.size);
-        executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
-			noffH.initData.size, noffH.initData.inFileAddr);
+        int sz = noffH.initData.size, // remaining sizes in file to be read
+            pos = noffH.initData.inFileAddr; // position within the file
+        unsigned int vpn = (unsigned) noffH.initData.virtualAddr / PageSize,
+                     offset = (unsigned) noffH.initData.virtualAddr % PageSize;
+        while (sz > 0) {
+            int block_size = min(PageSize - offset, sz);
+            executable->ReadAt(
+                &(machine->mainMemory[pageTable[vpn].physicalPage * PageSize + offset]),
+			    block_size, pos);
+            sz -= block_size;
+            pos += block_size;
+            vpn++;
+            offset = 0;
+        }
     }
 
 }
 
 //----------------------------------------------------------------------
 // AddrSpace::~AddrSpace
-// 	Dealloate an address space.  Nothing for now!
+// 	Dealloate an address space.  /// But where the deallocation is called???
 //----------------------------------------------------------------------
 
 AddrSpace::~AddrSpace()
 {
-   delete pageTable;
+    printf("Deallocating AddrSpace\n");
+    // clear memory bitmap
+    for (int i = 0; i < numPages; i++)
+        machine->mem_bmp->Clear(pageTable[i].physicalPage);
+
+    delete [] pageTable;
 }
 
 //----------------------------------------------------------------------

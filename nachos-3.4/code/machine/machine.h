@@ -25,6 +25,7 @@
 #include "utility.h"
 #include "translate.h"
 #include "disk.h"
+#include "bitmap.h"
 
 // Choose the strategy to use when TLB miss happens
 //#define TLB_FIFO
@@ -185,6 +186,8 @@ class Machine {
 
     TranslationEntry *pageTable;
     unsigned int pageTableSize;
+
+	BitMap *mem_bmp; // bitmap recording the usage of memory page frames
 
 #ifdef USE_TLB
 	int tlb_lookup_cnt; // total times TLB is looked up, i.e. the total times 
