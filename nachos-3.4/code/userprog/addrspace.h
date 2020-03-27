@@ -20,9 +20,9 @@
 
 class AddrSpace {
   public:
-    AddrSpace(OpenFile *executable);	// Create an address space,
-					// initializing it with the program
-					// stored in the file "executable"
+    AddrSpace(OpenFile *executable, int _tid); // Create an address space,
+					              // initializing it with the program
+					              // stored in the file "executable"
     ~AddrSpace();			// De-allocate an address space
 
     void InitRegisters();		// Initialize user-level CPU registers,
@@ -36,6 +36,17 @@ class AddrSpace {
 					// address translation takes place) in this user program
 	  int tlb_miss_cnt; // total times TLB misses in this user program
 #endif // USE_TLB
+
+#ifdef INV_PG
+// page replacement algorithm dependent variables
+#ifdef PG_FIFO
+	int pg_next_repl; // TODO
+#else // PG_LRU
+	int pg_lru[ResSize]; // pg_lru[0] is the least recently used (i.e. the one 
+			// to be replaced), while pg_lru[ResSize-1] is the most recently used.
+			// Note: initialized to all -1, representing invaid entry.
+#endif // PG_FIFO
+#endif // INV_PG
 
     unsigned int numPages; // Number of pages in the virtual 
 					                // address space

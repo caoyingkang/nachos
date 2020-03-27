@@ -58,10 +58,12 @@ SwapHeader (NoffHeader *noffH)
 //	only uniprogramming, and we have a single unsegmented page table
 //
 //	"executable" is the file containing the object code to load into memory
+//  "_tid" is the thread which will run this user prog
 //----------------------------------------------------------------------
-
-AddrSpace::AddrSpace(OpenFile *executable)
+AddrSpace::AddrSpace(OpenFile *executable, int _tid)
 {
+    printf("Initializing AddrSpace of tid %d\n", _tid);
+
     NoffHeader noffH;
     int i;
     unsigned int size;
@@ -82,7 +84,91 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
 // set up the translation, and copy the code and data segments into memory
 #ifdef INV_PG // use global inverted page table, thus support VM.
-    // Really, there is nothing to do, since we are applying lazy loading
+    // allocate a resident set for this user prog.
+    // there must be enough page frames since MaxNumThreads 
+    // is set as (NumPhysPages / ResSize).
+    int tmp = 0;
+    for (i = 0; i < NumPhysPages; i++) {
+        if (machine->invPageTable[i].tid == -1) {
+            ASSERT(machine->invPageTable[i].valid == FALSE);
+            machine->invPageTable[i].tid = _tid;
+            tmp++;
+            if (tmp == ResSize) break;
+        }
+    }
+    ASSERT(tmp == ResSize);
+
+    // creat and open a swap file
+    char swapFileName[10] = "swap_";
+    sprintf(&swapFileName[5], "%d", _tid);
+    //itoa(_tid, &swapFileName[5], 10);
+    fileSystem->Create(swapFileName, size);
+
+    machine->swapFiles[_tid] = fileSystem->Open(swapFileName);
+    machine->ro_bmp[_tid] = new BitMap(numPages);
+
+    // copy the contents of executable into swap file
+    char buff[PageSize]; // copy one page per one time
+    if (noffH.code.size > 0) {
+        int sz = noffH.code.size, // remaining bytes in file to be copied
+            pos = noffH.code.inFileAddr; // position within the file
+        unsigned int vpn = (unsigned) noffH.code.virtualAddr / PageSize,
+                     offset = (unsigned) noffH.code.virtualAddr % PageSize;
+        while (sz > 0) {
+            int block_size = min(PageSize - offset, sz);
+            executable->ReadAt(buff, block_size, pos);
+            machine->swapFiles[_tid]->WriteAt(
+                        buff, block_size, vpn * PageSize + offset);
+            if (block_size == PageSize) {       // if this page contains only codes,
+                machine->ro_bmp[_tid]->Mark(vpn); // we could set it to be read-only.
+            }
+            sz -= block_size;
+            pos += block_size;
+            vpn++;
+            offset = 0;
+        }
+    }
+    if (noffH.initData.size > 0) {
+        int sz = noffH.initData.size, // remaining bytes in file to be read
+            pos = noffH.initData.inFileAddr; // position within the file
+        unsigned int vpn = (unsigned) noffH.initData.virtualAddr / PageSize,
+                     offset = (unsigned) noffH.initData.virtualAddr % PageSize;
+        while (sz > 0) {
+            int block_size = min(PageSize - offset, sz);
+            executable->ReadAt(buff, block_size, pos);
+            machine->swapFiles[_tid]->WriteAt(
+                        buff, block_size, vpn * PageSize + offset);
+            sz -= block_size;
+            pos += block_size;
+            vpn++;
+            offset = 0;
+        }
+    }
+    if (noffH.uninitData.size > 0) {
+        int sz = noffH.uninitData.size, // remaining bytes in file to be read
+            pos = noffH.uninitData.inFileAddr; // position within the file
+        unsigned int vpn = (unsigned) noffH.uninitData.virtualAddr / PageSize,
+                     offset = (unsigned) noffH.uninitData.virtualAddr % PageSize;
+        while (sz > 0) {
+            int block_size = min(PageSize - offset, sz);
+            executable->ReadAt(buff, block_size, pos);
+            machine->swapFiles[_tid]->WriteAt(
+                        buff, block_size, vpn * PageSize + offset);
+            sz -= block_size;
+            pos += block_size;
+            vpn++;
+            offset = 0;
+        }
+    }
+
+    // set page repl-algo-dependent variables
+#ifdef PG_FIFO
+	// TODO
+#else // PG_LRU
+	for (int i = 0; i < ResSize; i++)
+        pg_lru[i] = -1;
+#endif // PG_FIFO
+
 #else // use normal page table, one per user prog. do not support VM.
     ASSERT(numPages <= machine->mem_bmp->NumClear()); // make sure there is 
                                     // enough memory for this user prog
@@ -105,7 +191,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
     if (noffH.code.size > 0) {
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
-        int sz = noffH.code.size, // remaining sizes in file to be read
+        int sz = noffH.code.size, // remaining bytes in file to be read
             pos = noffH.code.inFileAddr; // position within the file
         unsigned int vpn = (unsigned) noffH.code.virtualAddr / PageSize,
                      offset = (unsigned) noffH.code.virtualAddr % PageSize;
@@ -126,7 +212,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
     if (noffH.initData.size > 0) {
         DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
 			noffH.initData.virtualAddr, noffH.initData.size);
-        int sz = noffH.initData.size, // remaining sizes in file to be read
+        int sz = noffH.initData.size, // remaining bytes in file to be read
             pos = noffH.initData.inFileAddr; // position within the file
         unsigned int vpn = (unsigned) noffH.initData.virtualAddr / PageSize,
                      offset = (unsigned) noffH.initData.virtualAddr % PageSize;
@@ -146,8 +232,10 @@ AddrSpace::AddrSpace(OpenFile *executable)
     // debug msg
     machine->mem_bmp->Print();
 
+#ifdef USE_TLB
     tlb_lookup_cnt = 0;
     tlb_miss_cnt = 0;
+#endif // USE_TLB
 
 }
 
@@ -158,11 +246,39 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
 AddrSpace::~AddrSpace()
 {
-    // clear memory bitmap
-    for (int i = 0; i < numPages; i++)
-        machine->mem_bmp->Clear(pageTable[i].physicalPage);
+    int i;
 
+// clear memory bitmap
+#ifdef INV_PG // use global inverted page table, thus support VM.
+    int _tid = currentThread->getThreadID();
+    for (i = 0; i < NumPhysPages; i++) {
+        if (machine->invPageTable[i].tid == _tid && 
+                machine->invPageTable[i].valid) {
+            machine->mem_bmp->Clear(i);
+            machine->invPageTable[i].valid = FALSE;
+            machine->invPageTable[i].tid = -1;
+        }
+    }
+
+    // close and remove the swap file
+    
+    delete machine->swapFiles[_tid];
+    machine->swapFiles[_tid] = NULL;
+    delete machine->ro_bmp[_tid];
+    machine->ro_bmp[_tid] = NULL;
+
+    char swapFileName[10] = "swap_";
+    sprintf(&swapFileName[5], "%d", _tid);
+    //itoa(_tid, &swapFileName[5], 10);
+    fileSystem->Remove(swapFileName);
+
+#else // use normal page table, one per user prog. do not support VM.
+    for (i = 0; i < numPages; i++) {
+        if (pageTable[i].valid)
+            machine->mem_bmp->Clear(pageTable[i].physicalPage);
+    }
     delete [] pageTable;
+#endif // INV_PG
 }
 
 //----------------------------------------------------------------------

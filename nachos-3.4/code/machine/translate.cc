@@ -245,8 +245,24 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 #ifdef INV_PG // use inverted page table.
 	for (entry = NULL, i = 0; i < NumPhysPages; i++)
 		if (invPageTable[i].valid && (invPageTable[i].virtualPage == vpn) && 
-				invPageTable[i].tid = currentThread->getThreadID()) {
-			entry = &invPageTable[i];
+				invPageTable[i].tid == currentThread->getThreadID()) {
+			entry = &invPageTable[i]; // FOUND!
+#ifdef PG_LRU // update pg_lru
+			int rear, j = ResSize - 1;
+			while (currentThread->space->pg_lru[j] == -1) j--;
+			rear = j;
+			for (; j >= 0; j--) {
+				if (currentThread->space->pg_lru[j] == i) break;
+			}
+			ASSERT(j >= 0); // must find i in pg_lru
+			if (j != rear) {
+				for (; j < rear; j++) {
+					currentThread->space->pg_lru[j] = \
+					currentThread->space->pg_lru[j + 1];
+				}
+				currentThread->space->pg_lru[rear] = i;
+			}
+#endif // PG_LRU
 			break;
 		}
 	if (entry == NULL) {

@@ -50,9 +50,10 @@
 void
 ExceptionHandler(ExceptionType which)
 {
-    int type = machine->ReadRegister(2);
-
+//////////////////////////////////////////////
+// SyscallException
     if (which == SyscallException) {
+        int type = machine->ReadRegister(2);
         switch (type) 
         {
         case SC_Halt:
@@ -68,7 +69,11 @@ ExceptionHandler(ExceptionType which)
         
         case SC_Exit:
             int arg1 = machine->ReadRegister(4);
-            printf("Exiting user program with code: %d\n", arg1);
+            printf("User program (tid=%d) exiting with code: %d\n", 
+                currentThread->getThreadID(), arg1);
+#ifdef INV_PG
+            machine->PrintInvPageTable();
+#endif // INV_PG
             currentThread->Finish();
             break; // never reached
             
@@ -78,20 +83,24 @@ ExceptionHandler(ExceptionType which)
             break;
         }
     } // SyscallException
-    
+
+//////////////////////////////////////////////
+// PageFaultException
     else if (which == PageFaultException) {
-#ifdef USE_TLB
-        currentThread->space->tlb_miss_cnt++;
         int virtAddr = machine->ReadRegister(BadVAddrReg);
         unsigned int vpn = (unsigned) virtAddr / PageSize;
-        TranslationEntry *entry = NULL;
-        int i = 0;
-        for (; i < TLBSize; i++) // search any invalid entry in TLB
+        TranslationEntry *tlb_entry;
+        int i;
+        bool load_pgtable = true;
+
+#ifdef USE_TLB // the fault is invoked by TLB miss
+        currentThread->space->tlb_miss_cnt++;
+        for (tlb_entry = NULL, i = 0; i < TLBSize; i++) // search any invalid entry in TLB
             if (!machine->tlb[i].valid) {
-                entry = &machine->tlb[i]; // FOUND!
+                tlb_entry = &machine->tlb[i]; // FOUND!
                 break;
             }
-        if (entry != NULL) { // found an invalid entry
+        if (tlb_entry != NULL) { // found an invalid entry
 
 #ifdef TLB_LRU // update tlb_lru
             int j;
@@ -104,39 +113,87 @@ ExceptionHandler(ExceptionType which)
             ASSERT(j < TLBSize); // must found one tlb_lru elem
 #endif // TLB_LRU 
 
-            // entry->virtualPage = vpn;
-            // entry->physicalPage = vpn;
-            // entry->valid = true;
-            // entry->readOnly = false;
-            // entry->use = false;
-            // entry->dirty = false;
-            *entry = machine->pageTable[vpn];
-            // memcpy((void *)entry, (void *)&machine->pageTable[vpn], 
-            //         sizeof(TranslationEntry));
+#ifdef INV_PG // use inverted page table.
+    // TODO
+#else // use normal linear page table.
+            // Since VM is not supported, this page must be in memory.
+            *tlb_entry = machine->pageTable[vpn];
+            load_pgtable = false;
+#endif // INV_PG
+
         } else { // replace one TLB entry
 
 #ifdef TLB_FIFO
-            entry = &machine->tlb[machine->tlb_next_repl];
+            tlb_entry = &machine->tlb[machine->tlb_next_repl];
             machine->tlb_next_repl = (machine->tlb_next_repl + 1) % TLBSize;
 #else // TLB_LRU
-            entry = &machine->tlb[machine->tlb_lru[0]];
+            tlb_entry = &machine->tlb[machine->tlb_lru[0]];
 #endif // TLB_FIFO
 
-            // entry->virtualPage = vpn;
-            // entry->physicalPage = vpn;
-            // entry->valid = true;
-            // entry->readOnly = false;
-            // entry->use = false;
-            // entry->dirty = false;
-            machine->pageTable[entry->virtualPage] = *entry;
-            *entry = machine->pageTable[vpn];
-            // memcpy((void *)&machine->pageTable[entry->virtualPage], 
-            //         (void *)entry, sizeof(TranslationEntry));
-            // memcpy((void *)entry, (void *)&machine->pageTable[vpn], 
-            //         sizeof(TranslationEntry));
+#ifdef INV_PG // use inverted page table.
+    // TODO
+#else // use normal linear page table.
+            machine->pageTable[tlb_entry->virtualPage] = *tlb_entry;
+            *tlb_entry = machine->pageTable[vpn];
+            load_pgtable = false;
+#endif // INV_PG
+
         }
-#else // Linear Page Table
-        ASSERT(FALSE);
 #endif // USE_TLB
+
+        if (load_pgtable) { // this page is not in memory yet, we should load it 
+                            // from file, and replace one page if necessary, and 
+                            // update TLB if TLB is in use.
+            // Note: Only using inverted page table can lead us here.
+#ifdef INV_PG
+            int tid = currentThread->getThreadID();
+            // search any invalid page frame in the resident set
+            TranslationEntry *pg_entry;
+            int ppn = machine->FindInvalidEntry(tid);
+            if (ppn != -1) { // found
+                pg_entry = &machine->invPageTable[ppn];
+#ifdef PG_LRU // update pg_lru
+                int j;
+                for (j = 0; j < ResSize; j++) {
+                    if (currentThread->space->pg_lru[j] == -1) { 
+                        currentThread->space->pg_lru[j] = ppn;
+                        break;
+                    }
+                }
+                ASSERT(j < ResSize); // must found one pg_lru elem
+#endif // PG_LRU 
+            } else { // not found, we should replace one page frame
+                ppn = machine->FindReplEntry(tid);
+                pg_entry = &machine->invPageTable[ppn];
+                // write back if necessary
+                if (pg_entry->dirty) {
+                    machine->swapFiles[tid]->WriteAt(
+                        &machine->mainMemory[ppn * PageSize],
+                        PageSize, pg_entry->virtualPage * PageSize);                    
+                }
+            }
+            // load page
+            machine->swapFiles[tid]->ReadAt(
+                &machine->mainMemory[ppn * PageSize],
+                PageSize, vpn * PageSize);
+            // reset inverted page table
+            pg_entry->virtualPage = vpn;
+            pg_entry->valid = true;
+            pg_entry->readOnly = machine->ro_bmp[tid]->Test(vpn);
+            pg_entry->use = false;
+            pg_entry->dirty = false;
+            ASSERT(pg_entry->tid == tid);
+
+#else 
+            ASSERT(FALSE);
+#endif // INV_PG
+        }
+
     } // PageFaultException
+
+    else {
+        printf("Unimplemented Exception!\n");
+        ASSERT(FALSE);
+    }
+    
 }

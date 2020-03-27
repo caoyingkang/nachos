@@ -46,9 +46,9 @@
 #endif
 
 // choose the scheduler algo here
- #define SCHED_NAIVE // naive sched: FIFO, omitting priority
+// #define SCHED_NAIVE // naive sched: FIFO, omitting priority
 // #define SCHED_PRI_PRMPT // preemptive sched based on priority
-// #define SCHED_RR // Round-Robin
+ #define SCHED_RR // Round-Robin
 
 // CPU register state to be saved on context switch.  
 // The SPARC and MIPS only need 10 registers, but the Snake needs 18.
@@ -62,7 +62,13 @@
 
 
 // Maximum #threads existing in Nachos
+#ifdef INV_PG // support VM
+// assume each thread will run a user prog, and the thread finishes 
+// when the user prog exits.
+#define MaxNumThreads (NumPhysPages / ResSize)
+#else // do not support VM
 #define MaxNumThreads 128
+#endif // INV_PG
 
 // Valid priority levels are: 0,1,...,NumPriLevels-1
 #define NumPriLevels 4

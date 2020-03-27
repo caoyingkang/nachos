@@ -30,10 +30,14 @@ StartProcess(char *filename)
 	printf("Unable to open file %s\n", filename);
 	return;
     }
-    space = new AddrSpace(executable);    
+    space = new AddrSpace(executable, currentThread->getThreadID());    
     currentThread->space = space;
 
     delete executable;			// close file
+
+#ifdef INV_PG
+    machine->PrintInvPageTable();
+#endif // INV_PG
 
     space->InitRegisters();		// set the initial register values
     space->RestoreState();		// load page table register

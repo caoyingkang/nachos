@@ -37,12 +37,11 @@ BitMap::~BitMap()
 }
 
 //----------------------------------------------------------------------
-// BitMap::Set
+// BitMap::Mark
 // 	Set the "nth" bit in a bitmap.
 //
 //	"which" is the number of the bit to be set.
 //----------------------------------------------------------------------
-
 void
 BitMap::Mark(int which) 
 { 
@@ -70,7 +69,6 @@ BitMap::Clear(int which)
 //
 //	"which" is the number of the bit to be tested.
 //----------------------------------------------------------------------
-
 bool 
 BitMap::Test(int which)
 {

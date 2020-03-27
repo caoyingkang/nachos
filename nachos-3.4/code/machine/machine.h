@@ -31,6 +31,12 @@
 //#define TLB_FIFO
 #define TLB_LRU
 
+#ifdef INV_PG
+// Choose the strategy to use in page replacement
+//#define PG_FIFO
+#define PG_LRU
+#endif // INV_PG
+
 // Definitions related to the size, and format of user memory
 
 #define PageSize 	SectorSize 	// set the page size equal to
@@ -40,6 +46,9 @@
 #define NumPhysPages    32
 #define MemorySize 	(NumPhysPages * PageSize)
 #define TLBSize		4		// if there is a TLB, make it small
+
+// If VM is supported, this is the size of resident set for each thread
+#define ResSize 8 
 
 enum ExceptionType { NoException,           // Everything ok!
 		     SyscallException,      // A program executed a system call.
@@ -186,6 +195,18 @@ class Machine {
 
 #ifdef INV_PG // use global inverted page table, thus support VM.
     TranslationEntry invPageTable[NumPhysPages];
+
+	int FindInvalidEntry(int _tid); // in the resident set of _tid, 
+			// find any invalid entry. As a side effect, set bit in mem_bmp.
+	int FindReplEntry(int _tid); // page replacement algo. 
+			// return the selected ppn.
+	void PrintInvPageTable();
+
+	OpenFile *swapFiles[NumPhysPages / ResSize]; // copy of executables, 
+										// used for swapping page frames
+	BitMap *ro_bmp[NumPhysPages / ResSize]; 
+						// bitmap recording if each vpn is readOnly
+
 #else // use normal page table, one per user prog. do not support VM.
     TranslationEntry *pageTable;
     unsigned int pageTableSize;

@@ -74,9 +74,16 @@ Machine::Machine(bool debug)
 
 #ifdef INV_PG // use global inverted page table, thus support VM.
     for (i = 0; i < NumPhysPages; i++) {
-        pageTable[i].physicalPage = i;
-        pageTable[i].valid = FALSE;
+        invPageTable[i].physicalPage = i;
+        invPageTable[i].valid = FALSE;
+        invPageTable[i].tid = -1; // indicating this entry does not
+                        // belong to any resident set of thread
     }
+    for (i = 0; i < NumPhysPages / ResSize; i++) {
+        swapFiles[i] == NULL;
+        ro_bmp[i] == NULL;
+    }
+   
 #else // use normal page table, one per user prog. do not support VM.
     pageTable = NULL; // to be set in AddrSpace::RestoreState
 #endif // INV_PG
@@ -223,3 +230,61 @@ void Machine::WriteRegister(int num, int value)
 	registers[num] = value;
     }
 
+#ifdef INV_PG // use global inverted page table, thus support VM.
+//----------------------------------------------------------------------
+// Machine::FindInvalidEntry
+//      In the resident set of _tid, find any invalid entry. 
+//      As a side effect, set bit in mem_bmp.
+//      If not found, return -1.
+//----------------------------------------------------------------------
+int Machine::FindInvalidEntry(int _tid) 
+{
+    for (int i = 0; i < NumPhysPages; i++) {
+        if (!invPageTable[i].valid && invPageTable[i].tid == _tid) {
+            ASSERT(!mem_bmp->Test(i));
+            mem_bmp->Mark(i);
+            return i;
+        }
+    }
+    return -1;
+}
+
+//----------------------------------------------------------------------
+// Machine::FindReplEntry
+//      Page replacement algorithm. 
+//      Return the selected ppn.
+//----------------------------------------------------------------------
+int Machine::FindReplEntry(int _tid)
+{
+#ifdef PG_FIFO
+    // TODO
+#else // PG_LRU
+    return currentThread->space->pg_lru[0];
+#endif // PG_FIFO
+}
+
+//----------------------------------------------------------------------
+// Machine::PrintInvPageTable
+//      Print out the whole content of inverted page table, 
+//      in the format:
+// ppn      vpn     tid     valid?  readOnly?   use?    dirty?    
+// ***      **      ***     ***     ***         ***     ***
+// ***      **      ***     ***     ***         ***     ***
+//----------------------------------------------------------------------
+void Machine::PrintInvPageTable()
+{
+    printf(" *** content of inverted page table:\n");
+    printf("\tppn\tvpn\ttid\tvalid?\treadOnly?\tuse?\tdirty?\n");
+    for (int i = 0; i < NumPhysPages; i++) {
+        printf("\t%d\t%d\t%d\t%c\t%c\t\t%c\t%c\n",
+            invPageTable[i].physicalPage,
+            invPageTable[i].virtualPage,
+            invPageTable[i].tid,
+            (invPageTable[i].valid ? 'Y': 'N'),
+            (invPageTable[i].readOnly ? 'Y': 'N'),
+            (invPageTable[i].use ? 'Y': 'N'),
+            (invPageTable[i].dirty ? 'Y': 'N'));
+    }
+}
+
+#endif // INV_PG

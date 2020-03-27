@@ -42,7 +42,8 @@ class TranslationEntry {
 			// page is modified.
 
 #ifdef INV_PG
-    int tid; // thread owning this inverted page table entry
+    int tid; // thread owning this inverted page table entry.
+            // every thread has a resident set of fixed size ResSize.
 #endif // INV_PG
 
 };
