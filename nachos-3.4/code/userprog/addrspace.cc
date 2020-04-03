@@ -230,7 +230,7 @@ AddrSpace::AddrSpace(OpenFile *executable, int _tid)
 #endif // INV_PG
 
     // debug msg
-    machine->mem_bmp->Print();
+    //machine->mem_bmp->Print();
 
 #ifdef USE_TLB
     tlb_lookup_cnt = 0;
@@ -252,11 +252,12 @@ AddrSpace::~AddrSpace()
 #ifdef INV_PG // use global inverted page table, thus support VM.
     int _tid = currentThread->getThreadID();
     for (i = 0; i < NumPhysPages; i++) {
-        if (machine->invPageTable[i].tid == _tid && 
-                machine->invPageTable[i].valid) {
-            machine->mem_bmp->Clear(i);
-            machine->invPageTable[i].valid = FALSE;
+        if (machine->invPageTable[i].tid == _tid) {
             machine->invPageTable[i].tid = -1;
+            if (machine->invPageTable[i].valid) {
+                machine->mem_bmp->Clear(i);
+                machine->invPageTable[i].valid = FALSE;
+            }
         }
     }
 
