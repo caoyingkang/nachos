@@ -8,6 +8,7 @@
 
 #include "copyright.h"
 #include "utility.h"
+#include <ctime>
 
 // this seems to be dependent on how the compiler is configured.
 // if you have problems with va_start, try both of these alternatives
@@ -72,4 +73,17 @@ DEBUG(char flag, char *format, ...)
 	va_end(ap);
 	fflush(stdout);
     }
+}
+
+//----------------------------------------------------------------------
+// getCurrTime
+//      get current time, and save in 'str' in the format:
+//      "yyyy-mm-xx hh:mm:ss"
+// Note: make sure that the array 'str' has at least 20 bytes.
+//----------------------------------------------------------------------
+void getCurrTime (char* str)
+{
+    time_t nowtime = time(NULL);
+    strftime(str, 20, "%Y-%m-%d %H:%M:%S", localtime(&nowtime));
+    return;
 }

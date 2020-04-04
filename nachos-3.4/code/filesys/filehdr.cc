@@ -26,6 +26,7 @@
 
 #include "system.h"
 #include "filehdr.h"
+#include "utility.h"
 
 //----------------------------------------------------------------------
 // FileHeader::Allocate
@@ -44,10 +45,11 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
     numBytes = fileSize;
     numSectors  = divRoundUp(fileSize, SectorSize);
     if (freeMap->NumClear() < numSectors)
-	return FALSE;		// not enough space
+	    return FALSE;		// not enough space
 
     for (int i = 0; i < numSectors; i++)
-	dataSectors[i] = freeMap->Find();
+	    dataSectors[i] = freeMap->Find();
+    getCurrTime(creat_time);
     return TRUE;
 }
 
