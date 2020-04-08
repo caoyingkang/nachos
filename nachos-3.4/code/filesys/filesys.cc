@@ -187,7 +187,7 @@ FileSystem::Create(char *name, int initialSize)
 
     if (directory->Find(name) != -1)
         success = FALSE;			// file is already in directory
-    else {	
+    else { 
         freeMap = new BitMap(NumSectors);
         freeMap->FetchFrom(freeMapFile);
         sector = freeMap->Find();	// find a sector to hold the file header
@@ -202,6 +202,7 @@ FileSystem::Create(char *name, int initialSize)
             else {	
                 success = TRUE;
                 // everthing worked, flush all changes back to disk
+                ASSERT(sizeof(FileHeader) == SectorSize);
                 hdr->WriteBack(sector); 		
                 directory->WriteBack(directoryFile);
                 freeMap->WriteBack(freeMapFile);

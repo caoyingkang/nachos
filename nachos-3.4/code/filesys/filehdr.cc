@@ -75,7 +75,6 @@ FileHeader::Deallocate(BitMap *freeMap)
 //
 //	"sector" is the disk sector containing the file header
 //----------------------------------------------------------------------
-
 void
 FileHeader::FetchFrom(int sector)
 {
@@ -88,7 +87,6 @@ FileHeader::FetchFrom(int sector)
 //
 //	"sector" is the disk sector to contain the file header
 //----------------------------------------------------------------------
-
 void
 FileHeader::WriteBack(int sector)
 {

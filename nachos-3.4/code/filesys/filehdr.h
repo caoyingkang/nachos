@@ -19,10 +19,11 @@
 #include <cstdint>
 
 #define TimeStrLen 20 // "yyyy-mm-xx hh:mm:ss"
-#define NumDirect ((SectorSize - 2 * sizeof(int) - 1 - 3 * TimeStrLen) / sizeof(int))
+#define NumDirect ((SectorSize - 2 * sizeof(int) - sizeof(FileType) \
+                   - 3 * TimeStrLen) / sizeof(int))
 #define MaxFileSize 	(NumDirect * SectorSize)
 
-enum FileType : uint8_t
+enum FileType : uint32_t
 {
   DIR,    // directory
   EXE,    // executable
