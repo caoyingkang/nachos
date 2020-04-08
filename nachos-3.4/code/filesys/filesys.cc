@@ -76,7 +76,6 @@
 //
 //	"format" -- should we initialize the disk?
 //----------------------------------------------------------------------
-
 FileSystem::FileSystem(bool format)
 { 
     DEBUG('f', "Initializing the file system.\n");
@@ -170,7 +169,6 @@ FileSystem::FileSystem(bool format)
 //	"name" -- name of file to be created
 //	"initialSize" -- size of file to be created
 //----------------------------------------------------------------------
-
 bool
 FileSystem::Create(char *name, int initialSize)
 {
@@ -224,7 +222,6 @@ FileSystem::Create(char *name, int initialSize)
 //
 //	"name" -- the text name of the file to be opened
 //----------------------------------------------------------------------
-
 OpenFile *
 FileSystem::Open(char *name)
 { 
@@ -254,7 +251,6 @@ FileSystem::Open(char *name)
 //
 //	"name" -- the text name of the file to be removed
 //----------------------------------------------------------------------
-
 bool
 FileSystem::Remove(char *name)
 { 
@@ -292,7 +288,6 @@ FileSystem::Remove(char *name)
 // FileSystem::List
 // 	List all the files in the file system directory.
 //----------------------------------------------------------------------
-
 void
 FileSystem::List()
 {
@@ -312,7 +307,6 @@ FileSystem::List()
 //	      the contents of the file header
 //	      the data in the file
 //----------------------------------------------------------------------
-
 void
 FileSystem::Print()
 {

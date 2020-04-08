@@ -32,6 +32,7 @@ OpenFile::OpenFile(int sector)
     hdr = new FileHeader;
     hdr->FetchFrom(sector);
     seekPosition = 0;
+    hdrSector = sector;
 }
 
 //----------------------------------------------------------------------
@@ -112,7 +113,6 @@ OpenFile::Write(char *into, int numBytes)
 //	"position" -- the offset within the file of the first byte to be
 //			read/written
 //----------------------------------------------------------------------
-
 int
 OpenFile::ReadAt(char *into, int numBytes, int position)
 {
@@ -140,6 +140,11 @@ OpenFile::ReadAt(char *into, int numBytes, int position)
     // copy the part we want
     bcopy(&buf[position - (firstSector * SectorSize)], into, numBytes);
     delete [] buf;
+
+    // update last visited time
+    getCurrTime(hdr->visit_time);
+    hdr->WriteBack(hdrSector);
+
     return numBytes;
 }
 
@@ -182,6 +187,12 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
         synchDisk->WriteSector(hdr->ByteToSector(i * SectorSize), 
 					&buf[(i - firstSector) * SectorSize]);
     delete [] buf;
+
+    // update last visited time and modified time
+    getCurrTime(hdr->visit_time);
+    getCurrTime(hdr->modify_time);
+    hdr->WriteBack(hdrSector);
+
     return numBytes;
 }
 

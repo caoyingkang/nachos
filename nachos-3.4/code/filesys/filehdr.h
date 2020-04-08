@@ -73,9 +73,11 @@ class FileHeader {
     int dataSectors[NumDirect];		// Disk sector numbers for each data 
 					// block in the file
     FileType type; // type of the file
-    char creat_time[TimeStrLen]; // when was the file created
+    char create_time[TimeStrLen]; // when was the file created
     char visit_time[TimeStrLen]; // last time the file was visited
     char modify_time[TimeStrLen]; // last time the file was modified
+
+    friend class OpenFile;
 };
 
 #endif // FILEHDR_H

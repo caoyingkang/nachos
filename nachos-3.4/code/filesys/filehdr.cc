@@ -38,7 +38,6 @@
 //	"freeMap" is the bit map of free disk sectors
 //	"fileSize" is the bit map of free disk sectors
 //----------------------------------------------------------------------
-
 bool
 FileHeader::Allocate(BitMap *freeMap, int fileSize)
 { 
@@ -49,7 +48,11 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
 
     for (int i = 0; i < numSectors; i++)
 	    dataSectors[i] = freeMap->Find();
-    getCurrTime(creat_time);
+    
+    getCurrTime(create_time);
+    getCurrTime(visit_time);
+    getCurrTime(modify_time);
+
     return TRUE;
 }
 
