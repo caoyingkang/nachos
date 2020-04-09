@@ -19,8 +19,9 @@
 
 #include "openfile.h"
 
-#define FileNameMaxLen 		9	// for simplicity, we assume 
-					// file names are <= 9 characters long
+#define ShortFileNameMaxLen 9	// maximum len for short file name
+#define LongFileNameEntLen (ShortFileNameMaxLen + 2 * sizeof(int)) 
+                            // len each LongFileNameDirEntry can store
 
 // The following class defines a "directory entry", representing a file
 // in the directory.  Each entry gives the name of the file, and where
@@ -31,12 +32,41 @@
 
 class DirectoryEntry {
   public:
-    bool inUse;				// Is this directory entry in use?
-    int sector;				// Location on disk to find the 
-					//   FileHeader for this file 
-    char name[FileNameMaxLen + 1];	// Text name for file, with +1 for 
+  // members common for DirectoryEntry and LongFileNameDirEntry
+    bool normal; // is this a normal directory entry, instead of 
+                // a LongFileNameDirEntry? should be true!
+    bool inUse;	// is this directory entry in use?
+    int next; // next LongFileNameDirEntry, -1 denotes the end
+
+  // members specific to DirectoryEntry
+    int nameLen; // total len of file name
+    int sector;	// Location on disk to find the FileHeader for this file
+    char name[ShortFileNameMaxLen + 1];	// Text name for file, with +1 for 
 					// the trailing '\0'
 };
+
+// The following class defines a "long file name directory entry", it has
+// the same size as DirectoryEntry, i.e. short file name dir entry. Both
+// DirectoryEntry and LongFileNameDirEntry are stored in Directory::table,
+// type conversion is required to retrieve the right long file name.
+// If the file name is within ShortFileNameMaxLen, then only one DirectoryEntry
+// is enough. Otherwise, the leading ShortFileNameMaxLen characters are stored 
+// in DirectoryEntry and remaining characters in subsequent 
+// LongFileNameDirEntries.
+
+class LongFileNameDirEntry {
+  public:
+  // members common for DirectoryEntry and LongFileNameDirEntry
+    bool normal; // is this a normal directory entry, instead of 
+                // a LongFileNameDirEntry? should be false!
+    bool inUse;	// is this directory entry in use?
+    int next; // next LongFileNameDirEntry, -1 denotes the end
+  
+  // members specific to LongFileNameDirEntry
+    char name[LongFileNameEntLen + 1]; // Text name for file, with +1 for 
+					// the trailing '\0'
+};
+
 
 // The following class defines a UNIX-like "directory".  Each entry in
 // the directory describes a file, and where to find it on disk.
@@ -73,11 +103,12 @@ class Directory {
 
   private:
     int tableSize;			// Number of directory entries
-    DirectoryEntry *table;		// Table of pairs: 
-					// <file name, file header location> 
+    DirectoryEntry *table; // DirectoryEntries or LongFileNameDirEntries
 
     int FindIndex(char *name);		// Find the index into the directory 
 					//  table corresponding to "name"
+    void GetFileName(char *str, int index); // store the full file name of the 
+                    // index entry in str. Make sure that str has enough space!
 };
 
 #endif // DIRECTORY_H
