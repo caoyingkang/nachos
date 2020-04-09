@@ -100,39 +100,39 @@ Initialize(int argc, char **argv)
 #endif
     
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
-	argCount = 1;
-	if (!strcmp(*argv, "-d")) {
-	    if (argc == 1)
-		debugArgs = "+";	// turn on all debug flags
-	    else {
-	    	debugArgs = *(argv + 1);
-	    	argCount = 2;
-	    }
-	} else if (!strcmp(*argv, "-rs")) {
-	    ASSERT(argc > 1);
-	    RandomInit(atoi(*(argv + 1)));	// initialize pseudo-random
-						// number generator
-	    randomYield = TRUE;
-	    argCount = 2;
-	}
+        argCount = 1;
+        if (!strcmp(*argv, "-d")) {
+            if (argc == 1)
+            debugArgs = "+";	// turn on all debug flags
+            else {
+                debugArgs = *(argv + 1);
+                argCount = 2;
+            }
+        } else if (!strcmp(*argv, "-rs")) {
+            ASSERT(argc > 1);
+            RandomInit(atoi(*(argv + 1)));	// initialize pseudo-random
+                            // number generator
+            randomYield = TRUE;
+            argCount = 2;
+        }
 #ifdef USER_PROGRAM
-	if (!strcmp(*argv, "-s"))
-	    debugUserProg = TRUE;
+        if (!strcmp(*argv, "-s"))
+            debugUserProg = TRUE;
 #endif
 #ifdef FILESYS_NEEDED
-	if (!strcmp(*argv, "-f"))
-	    format = TRUE;
+        if (!strcmp(*argv, "-f"))
+            format = TRUE;
 #endif
 #ifdef NETWORK
-	if (!strcmp(*argv, "-l")) {
-	    ASSERT(argc > 1);
-	    rely = atof(*(argv + 1));
-	    argCount = 2;
-	} else if (!strcmp(*argv, "-m")) {
-	    ASSERT(argc > 1);
-	    netname = atoi(*(argv + 1));
-	    argCount = 2;
-	}
+        if (!strcmp(*argv, "-l")) {
+            ASSERT(argc > 1);
+            rely = atof(*(argv + 1));
+            argCount = 2;
+        } else if (!strcmp(*argv, "-m")) {
+            ASSERT(argc > 1);
+            netname = atoi(*(argv + 1));
+            argCount = 2;
+        }
 #endif
     }
 

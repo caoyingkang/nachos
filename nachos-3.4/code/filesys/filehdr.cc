@@ -28,6 +28,8 @@
 #include "filehdr.h"
 #include "utility.h"
 
+static const char *FileTypeName[6] = {"DIR", "EXE", "TXT", "CC", "BIT", "UNK"};
+
 //----------------------------------------------------------------------
 // FileHeader::Allocate
 // 	Initialize a fresh file header for a newly created file.
@@ -37,12 +39,14 @@
 //
 //	"freeMap" is the bit map of free disk sectors
 //	"fileSize" is the bit map of free disk sectors
+//  "t" is the type of this file
 //----------------------------------------------------------------------
 bool
-FileHeader::Allocate(BitMap *freeMap, int fileSize)
+FileHeader::Allocate(BitMap *freeMap, int fileSize, FileType t)
 { 
     numBytes = fileSize;
     numSectors  = divRoundUp(fileSize, SectorSize);
+    type = t;
     if (freeMap->NumClear() < numSectors)
 	    return FALSE;		// not enough space
 
@@ -62,13 +66,12 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
 //
 //	"freeMap" is the bit map of free disk sectors
 //----------------------------------------------------------------------
-
 void 
 FileHeader::Deallocate(BitMap *freeMap)
 {
     for (int i = 0; i < numSectors; i++) {
-	ASSERT(freeMap->Test((int) dataSectors[i]));  // ought to be marked!
-	freeMap->Clear((int) dataSectors[i]);
+        ASSERT(freeMap->Test((int) dataSectors[i]));  // ought to be marked!
+        freeMap->Clear((int) dataSectors[i]);
     }
 }
 
@@ -128,26 +131,50 @@ FileHeader::FileLength()
 // 	Print the contents of the file header, and the contents of all
 //	the data blocks pointed to by the file header.
 //----------------------------------------------------------------------
-
 void
 FileHeader::Print()
 {
     int i, j, k;
     char *data = new char[SectorSize];
 
-    printf("FileHeader contents.  File size: %d.  File blocks:\n", numBytes);
+    printf("FileHeader contents: \n\tFile type: %s. File size: %d.\n\tFile blocks: ", 
+            FileTypeName[(int)type], numBytes);
     for (i = 0; i < numSectors; i++)
-	printf("%d ", dataSectors[i]);
-    printf("\nFile contents:\n");
+	    printf("%d ", dataSectors[i]);
+    printf("\n\tCreated time: %s.\n\tLast visited time: %s.\n\tLast modified time: %s.\n",
+            create_time, visit_time, modify_time);
+    printf("File contents:\n\t");
     for (i = k = 0; i < numSectors; i++) {
-	synchDisk->ReadSector(dataSectors[i], data);
+	    synchDisk->ReadSector(dataSectors[i], data);
         for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++) {
-	    if ('\040' <= data[j] && data[j] <= '\176')   // isprint(data[j])
-		printf("%c", data[j]);
+            if ('\040' <= data[j] && data[j] <= '\176')   // isprint(data[j])
+                printf("%c", data[j]);
             else
-		printf("\\%x", (unsigned char)data[j]);
-	}
+                printf("\\%x", (unsigned char)data[j]);
+        }
         printf("\n"); 
     }
     delete [] data;
+}
+
+//----------------------------------------------------------------------
+// GetFileType
+// 	Get file type from the file name.
+//  If name ends with ".txt", ".cc", the type is recognized.
+//  All other cases lead to UNK type.
+//----------------------------------------------------------------------
+FileType GetFileType(char *name) {
+    int len = strlen(name);
+    int i;
+    for (i = len - 1; i >= 0; i--) {
+        if (name[i] == '.')
+            break;
+    }
+    if (i == -1) // no extension
+        return UNK;
+    if (!strcmp(name + i, ".txt"))
+        return TXT;
+    if (!strcmp(name + i, ".cc"))
+        return CC;
+    return UNK;
 }

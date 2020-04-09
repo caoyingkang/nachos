@@ -123,7 +123,6 @@ BitMap::NumClear()
 //	Could be done in a number of ways, but we just print the #'s of
 //	all the bits that are set in the bitmap.
 //----------------------------------------------------------------------
-
 void
 BitMap::Print() 
 {

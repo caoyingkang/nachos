@@ -27,7 +27,6 @@
 // Copy
 // 	Copy the contents of the UNIX file "from" to the Nachos file "to"
 //----------------------------------------------------------------------
-
 void
 Copy(char *from, char *to)
 {
@@ -35,11 +34,12 @@ Copy(char *from, char *to)
     OpenFile* openFile;
     int amountRead, fileLength;
     char *buffer;
+    FileType type = GetFileType(to);
 
 // Open UNIX file
     if ((fp = fopen(from, "r")) == NULL) {	 
-	printf("Copy: couldn't open input file %s\n", from);
-	return;
+        printf("Copy: couldn't open input file %s\n", from);
+        return;
     }
 
 // Figure out length of UNIX file
@@ -49,10 +49,10 @@ Copy(char *from, char *to)
 
 // Create a Nachos file of the same length
     DEBUG('f', "Copying file %s, size %d, to file %s\n", from, fileLength, to);
-    if (!fileSystem->Create(to, fileLength)) {	 // Create Nachos file
-	printf("Copy: couldn't create output file %s\n", to);
-	fclose(fp);
-	return;
+    if (!fileSystem->Create(to, fileLength, type)) {	 // Create Nachos file
+        printf("Copy: couldn't create output file %s\n", to);
+        fclose(fp);
+        return;
     }
     
     openFile = fileSystem->Open(to);
@@ -61,7 +61,7 @@ Copy(char *from, char *to)
 // Copy the data in TransferSize chunks
     buffer = new char[TransferSize];
     while ((amountRead = fread(buffer, sizeof(char), TransferSize, fp)) > 0)
-	openFile->Write(buffer, amountRead);	
+	    openFile->Write(buffer, amountRead);	
     delete [] buffer;
 
 // Close the UNIX and the Nachos files
@@ -116,29 +116,29 @@ Print(char *name)
 static void 
 FileWrite()
 {
-    OpenFile *openFile;    
-    int i, numBytes;
+    // OpenFile *openFile;    
+    // int i, numBytes;
 
-    printf("Sequential write of %d byte file, in %d byte chunks\n", 
-	FileSize, ContentSize);
-    if (!fileSystem->Create(FileName, 0)) {
-      printf("Perf test: can't create %s\n", FileName);
-      return;
-    }
-    openFile = fileSystem->Open(FileName);
-    if (openFile == NULL) {
-	printf("Perf test: unable to open %s\n", FileName);
-	return;
-    }
-    for (i = 0; i < FileSize; i += ContentSize) {
-        numBytes = openFile->Write(Contents, ContentSize);
-	if (numBytes < 10) {
-	    printf("Perf test: unable to write %s\n", FileName);
-	    delete openFile;
-	    return;
-	}
-    }
-    delete openFile;	// close file
+    // printf("Sequential write of %d byte file, in %d byte chunks\n", 
+	// FileSize, ContentSize);
+    // if (!fileSystem->Create(FileName, 0)) {
+    //   printf("Perf test: can't create %s\n", FileName);
+    //   return;
+    // }
+    // openFile = fileSystem->Open(FileName);
+    // if (openFile == NULL) {
+	// printf("Perf test: unable to open %s\n", FileName);
+	// return;
+    // }
+    // for (i = 0; i < FileSize; i += ContentSize) {
+    //     numBytes = openFile->Write(Contents, ContentSize);
+	// if (numBytes < 10) {
+	//     printf("Perf test: unable to write %s\n", FileName);
+	//     delete openFile;
+	//     return;
+	// }
+    // }
+    // delete openFile;	// close file
 }
 
 static void 

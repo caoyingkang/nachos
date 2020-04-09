@@ -19,7 +19,7 @@
 
 #include "openfile.h"
 
-#define ShortFileNameMaxLen 9	// maximum len for short file name
+#define ShortFileNameMaxLen 11	// maximum len for short file name
 #define LongFileNameEntLen (ShortFileNameMaxLen + 2 * sizeof(int)) 
                             // len each LongFileNameDirEntry can store
 
@@ -36,7 +36,8 @@ class DirectoryEntry {
     bool normal; // is this a normal directory entry, instead of 
                 // a LongFileNameDirEntry? should be true!
     bool inUse;	// is this directory entry in use?
-    int next; // next LongFileNameDirEntry, -1 denotes the end
+    short next; // next LongFileNameDirEntry, -1 denotes the end.
+              // for alignment: use short instead of int.
 
   // members specific to DirectoryEntry
     int nameLen; // total len of file name
@@ -60,7 +61,8 @@ class LongFileNameDirEntry {
     bool normal; // is this a normal directory entry, instead of 
                 // a LongFileNameDirEntry? should be false!
     bool inUse;	// is this directory entry in use?
-    int next; // next LongFileNameDirEntry, -1 denotes the end
+    short next; // next LongFileNameDirEntry, -1 denotes the end
+              // for alignment: use short instead of int.
   
   // members specific to LongFileNameDirEntry
     char name[LongFileNameEntLen + 1]; // Text name for file, with +1 for 

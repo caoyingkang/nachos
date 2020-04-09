@@ -36,8 +36,9 @@
 //----------------------------------------------------------------------
 Directory::Directory(int size)
 {
-    // make sure they are of same size
+    // make sure they are of the same size, 24 bytes.
     ASSERT(sizeof(DirectoryEntry) == sizeof(LongFileNameDirEntry));
+    ASSERT(sizeof(DirectoryEntry) == 24);
 
     table = new DirectoryEntry[size];
     tableSize = size;
@@ -88,11 +89,9 @@ Directory::WriteBack(OpenFile *file)
 int
 Directory::FindIndex(char *name)
 {
-    // int i, k, offset;
-    // LongFileNameDirEntry *entry;
     int len = strlen(name);
     char *str = new char[len + 1];
-    for (i = 0; i < tableSize; i++) {
+    for (int i = 0; i < tableSize; i++) {
         if (!(table[i].inUse && table[i].normal))
             continue;
         if (len != table[i].nameLen)

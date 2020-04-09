@@ -16,7 +16,7 @@
 
 #include "disk.h"
 #include "bitmap.h"
-#include <cstdint>
+#include <stdint.h>
 
 #define TimeStrLen 20 // "yyyy-mm-xx hh:mm:ss"
 #define NumDirect ((SectorSize - 2 * sizeof(int) - sizeof(FileType) \
@@ -28,8 +28,13 @@ enum FileType : uint32_t
   DIR,    // directory
   EXE,    // executable
   TXT,    // text
+  CC,     // cpp source file
+  BIT,    // bitmap
   UNK     // unknown type
 };
+
+// Get file type from the file name
+FileType GetFileType(char *name);
 
 // The following class defines the Nachos "file header" (in UNIX terms,  
 // the "i-node"), describing where on disk to find all of the data in the file.
@@ -48,7 +53,7 @@ enum FileType : uint32_t
 
 class FileHeader {
   public:
-    bool Allocate(BitMap *bitMap, int fileSize);// Initialize a file header, 
+    bool Allocate(BitMap *bitMap, int fileSize, FileType t);// Initialize a file header, 
 						//  including allocating space 
 						//  on disk for the file data
     void Deallocate(BitMap *bitMap);  		// De-allocate this file's 
