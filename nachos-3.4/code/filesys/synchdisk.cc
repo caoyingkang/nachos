@@ -68,7 +68,6 @@ SynchDisk::~SynchDisk()
 //	"sectorNumber" -- the disk sector to read
 //	"data" -- the buffer to hold the contents of the disk sector
 //----------------------------------------------------------------------
-
 void
 SynchDisk::ReadSector(int sectorNumber, char* data)
 {
@@ -86,7 +85,6 @@ SynchDisk::ReadSector(int sectorNumber, char* data)
 //	"sectorNumber" -- the disk sector to be written
 //	"data" -- the new contents of the disk sector
 //----------------------------------------------------------------------
-
 void
 SynchDisk::WriteSector(int sectorNumber, char* data)
 {

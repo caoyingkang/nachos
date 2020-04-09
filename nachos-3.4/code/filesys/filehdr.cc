@@ -43,19 +43,41 @@ static const char *FileTypeName[6] = {"DIR", "EXE", "TXT", "CC", "BIT", "UNK"};
 //----------------------------------------------------------------------
 bool
 FileHeader::Allocate(BitMap *freeMap, int fileSize, FileType t)
-{ 
+{
+    int i, k;
+
     numBytes = fileSize;
     numSectors  = divRoundUp(fileSize, SectorSize);
     type = t;
-    if (freeMap->NumClear() < numSectors)
-	    return FALSE;		// not enough space
-
-    for (int i = 0; i < numSectors; i++)
-	    dataSectors[i] = freeMap->Find();
-    
     getCurrTime(create_time);
     getCurrTime(visit_time);
     getCurrTime(modify_time);
+
+    int num_indr = divRoundUp(numSectors, SectorSize / sizeof(int));
+    ASSERT(num_indr <= NumIndirect);
+
+    if (freeMap->NumClear() < numSectors + num_indr)
+	    return FALSE;		// not enough space
+
+    int len = SectorSize / sizeof(int);
+    int *sectors = new int[len];
+    for (i = 0; i < num_indr; i++) {
+	    indirectSectors[i] = freeMap->Find();
+        if (i != num_indr - 1)
+            for (k = 0; k < len; k++)
+                sectors[k] = freeMap->Find();
+        else {
+            for (k = 0; k < (numSectors - len * (num_indr - 1)); k++)
+                sectors[k] = freeMap->Find();
+            for (; k < len; k++)
+                sectors[k] = -1;
+        }
+        synchDisk->WriteSector(indirectSectors[i], (char *)sectors);
+    }
+    for (; i < NumIndirect; i++) {
+        indirectSectors[i] = -1;
+    }
+    delete[] sectors;
 
     return TRUE;
 }
@@ -69,10 +91,23 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize, FileType t)
 void 
 FileHeader::Deallocate(BitMap *freeMap)
 {
-    for (int i = 0; i < numSectors; i++) {
-        ASSERT(freeMap->Test((int) dataSectors[i]));  // ought to be marked!
-        freeMap->Clear((int) dataSectors[i]);
+    int i, k;
+    int num_indr = divRoundUp(numSectors, SectorSize / sizeof(int));
+
+    int len = SectorSize / sizeof(int);
+    int *sectors = new int[len];
+    for (i = 0; i < num_indr; i++) {
+        ASSERT(freeMap->Test(indirectSectors[i])); // ought to be marked!
+        synchDisk->ReadSector(indirectSectors[i], (char *)sectors);
+        for (k = 0; k < len; k++) {
+            if (sectors[k] == -1)
+                break;
+            ASSERT(freeMap->Test(sectors[k])); // ought to be marked!
+            freeMap->Clear(sectors[k]);
+        }
+        freeMap->Clear(indirectSectors[i]);
     }
+    delete[] sectors;
 }
 
 //----------------------------------------------------------------------
@@ -102,24 +137,33 @@ FileHeader::WriteBack(int sector)
 //----------------------------------------------------------------------
 // FileHeader::ByteToSector
 // 	Return which disk sector is storing a particular byte within the file.
-//      This is essentially a translation from a virtual address (the
+//  This is essentially a translation from a virtual address (the
 //	offset in the file) to a physical address (the sector where the
 //	data at the offset is stored).
 //
 //	"offset" is the location within the file of the byte in question
 //----------------------------------------------------------------------
-
 int
 FileHeader::ByteToSector(int offset)
 {
-    return(dataSectors[offset / SectorSize]);
+    int len = SectorSize / sizeof(int);
+    int *sectors = new int[len];
+
+    int i = offset / (len * SectorSize);
+    int k = (offset % (len * SectorSize)) / SectorSize;
+    ASSERT(indirectSectors[i] != -1);
+    synchDisk->ReadSector(indirectSectors[i], (char *)sectors);
+    ASSERT(sectors[k] != -1);
+
+    int ret = sectors[k];
+    delete[] sectors;
+    return ret;
 }
 
 //----------------------------------------------------------------------
 // FileHeader::FileLength
 // 	Return the number of bytes in the file.
 //----------------------------------------------------------------------
-
 int
 FileHeader::FileLength()
 {
@@ -134,27 +178,48 @@ FileHeader::FileLength()
 void
 FileHeader::Print()
 {
-    int i, j, k;
+    int i, j, k, bytes;
     char *data = new char[SectorSize];
+
+    int len = SectorSize / sizeof(int);
+    int *sectors = new int[len];
+    int num_indr = divRoundUp(numSectors, len);
 
     printf("FileHeader contents: \n\tFile type: %s. File size: %d.\n\tFile blocks: ", 
             FileTypeName[(int)type], numBytes);
-    for (i = 0; i < numSectors; i++)
-	    printf("%d ", dataSectors[i]);
+    for (i = 0; i < num_indr; i++) {
+	    printf("(%d), ", indirectSectors[i]);
+        synchDisk->ReadSector(indirectSectors[i], (char *)sectors);
+        for (k = 0; k < len; k++) {
+            if (sectors[k] == -1)
+                break;
+    	    printf("%d, ", sectors[k]);         
+        }
+    }
+
     printf("\n\tCreated time: %s.\n\tLast visited time: %s.\n\tLast modified time: %s.\n",
             create_time, visit_time, modify_time);
+
     printf("File contents:\n\t");
-    for (i = k = 0; i < numSectors; i++) {
-	    synchDisk->ReadSector(dataSectors[i], data);
-        for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++) {
-            if ('\040' <= data[j] && data[j] <= '\176')   // isprint(data[j])
-                printf("%c", data[j]);
-            else
-                printf("\\%x", (unsigned char)data[j]);
+    bytes = 0;
+    for (i = 0; i < num_indr; i++) {
+        synchDisk->ReadSector(indirectSectors[i], (char *)sectors);
+        for (k = 0; k < len; k++) {
+            if (sectors[k] == -1)
+                break;
+            synchDisk->ReadSector(sectors[k], data);
+            for (j = 0; (j < SectorSize) && (bytes < numBytes); j++, bytes++) {
+                if ('\040' <= data[j] && data[j] <= '\176')   // isprint(data[j])
+                    printf("%c", data[j]);
+                else
+                    printf("\\%x", (unsigned char)data[j]);
+            }
         }
-        printf("\n"); 
     }
-    delete [] data;
+    printf("\n"); 
+    delete[] sectors;
+
+    delete[] data;
 }
 
 //----------------------------------------------------------------------

@@ -19,9 +19,9 @@
 #include <stdint.h>
 
 #define TimeStrLen 20 // "yyyy-mm-xx hh:mm:ss"
-#define NumDirect ((SectorSize - 2 * sizeof(int) - sizeof(FileType) \
+#define NumIndirect ((SectorSize - 2 * sizeof(int) - sizeof(FileType) \
                    - 3 * TimeStrLen) / sizeof(int))
-#define MaxFileSize 	(NumDirect * SectorSize)
+#define MaxFileSize ((NumIndirect * SectorSize / sizeof(int)) * SectorSize)
 
 enum FileType : uint32_t
 {
@@ -75,8 +75,10 @@ class FileHeader {
   private:
     int numBytes;			// Number of bytes in the file
     int numSectors;			// Number of data sectors in the file
-    int dataSectors[NumDirect];		// Disk sector numbers for each data 
-					// block in the file
+    int indirectSectors[NumIndirect];
+              // Disk sector numbers for each data block in the file.
+              // Each entry is the sector of a direct table.
+              // -1 denotes unused entry.
     FileType type; // type of the file
     char create_time[TimeStrLen]; // when was the file created
     char visit_time[TimeStrLen]; // last time the file was visited
