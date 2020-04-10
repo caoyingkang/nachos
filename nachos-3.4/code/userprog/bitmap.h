@@ -17,7 +17,6 @@
 
 #include "copyright.h"
 #include "utility.h"
-#include "openfile.h"
 
 // Definitions helpful for representing a bitmap as an array of integers
 #define BitsInByte 	8
@@ -30,6 +29,8 @@
 // for instance, disk sectors, or main memory pages.
 // Each bit represents whether the corresponding sector or page is
 // in use or free.
+
+class OpenFile;
 
 class BitMap {
   public:

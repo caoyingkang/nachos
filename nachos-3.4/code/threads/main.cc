@@ -63,6 +63,7 @@ extern void ThreadTest(void), Copy(char *unixFile, char *nachosFile);
 extern void Print(char *file), PerformanceTest(void);
 extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
+extern void MakeDir(char *name);
 
 //----------------------------------------------------------------------
 // main
@@ -78,12 +79,14 @@ extern void MailTest(int networkID);
 //		ex: "nachos -d +" -> argv = {"nachos", "-d", "+"}
 //----------------------------------------------------------------------
 
+#ifdef USER_PROGRAM
 /////////////////////////////////////////////
 // test multiprogramming without SC_Exec
 void StartSortProg(int dummy) {
 	StartProcess("sort");
 }
 /////////////////////////////////////////////
+#endif // USER_PROGRAM
 
 int
 main(int argc, char **argv)
@@ -165,6 +168,10 @@ main(int argc, char **argv)
 			fileSystem->Print();
 		} else if (!strcmp(*_argv, "-t")) {	// performance test
 			PerformanceTest();
+		} else if (!strcmp(*_argv, "-mkdir")) { // creat a new dir
+			ASSERT(_argc > 1);
+			MakeDir(*(_argv + 1));
+			argCount = 2;
 		}
 #endif // FILESYS
 #ifdef NETWORK

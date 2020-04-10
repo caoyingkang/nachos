@@ -183,3 +183,15 @@ PerformanceTest()
     stats->Print();
 }
 
+//----------------------------------------------------------------------
+// MakeDir
+// 	Creat a new directory.
+//	"name" -- the name of the dir to be created.
+//  Note: Assume that "name" is in absolute path format, i.e. begin with "/".
+//----------------------------------------------------------------------
+void
+MakeDir(char *name) {
+    if(!fileSystem->Create(name, DirectoryFileSize, DIR)) {
+        printf("MakeDir: Unable to create directory %s!\n", name);
+    }
+}

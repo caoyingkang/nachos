@@ -12,11 +12,11 @@
 // All rights reserved.  See copyright.h for copyright notice and limitation 
 // of liability and disclaimer of warranty provisions.
 
-#include "copyright.h"
 
 #ifndef DIRECTORY_H
 #define DIRECTORY_H
 
+#include "copyright.h"
 #include "openfile.h"
 
 #define ShortFileNameMaxLen 11	// maximum len for short file name
@@ -70,6 +70,9 @@ class LongFileNameDirEntry {
 };
 
 
+#define NumDirEntries 10
+#define DirectoryFileSize (sizeof(DirectoryEntry) * NumDirEntries)
+
 // The following class defines a UNIX-like "directory".  Each entry in
 // the directory describes a file, and where to find it on disk.
 //
@@ -97,8 +100,8 @@ class Directory {
 
     bool Remove(char *name);		// Remove a file from the directory
 
-    void List();			// Print the names of all the files
-					//  in the directory
+    void List(bool recur = false, char *leading = "");
+          // Print the names of all the files in the directory
     void Print();			// Verbose print of the contents
 					//  of the directory -- all the file
 					//  names and their contents.

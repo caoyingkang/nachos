@@ -216,17 +216,45 @@ Directory::Remove(char *name)
 
 //----------------------------------------------------------------------
 // Directory::List
-// 	List all the file names in the directory. 
+// 	List all the file names in the directory.
+//
+//  "recur": if true: list recursively all files. default: false
+//  "leading": leading characters to be printed. default: ""
 //----------------------------------------------------------------------
 void
-Directory::List()
+Directory::List(bool recur, char *leading)
 {
+    Directory *directory;
+    OpenFile *openFile;
+    bool isDir;
+
     for (int i = 0; i < tableSize; i++)
         if (table[i].inUse && table[i].normal) {
+            if (recur) {
+                // Is this file a directory file ?
+                openFile = new OpenFile(table[i].sector);
+                isDir = (openFile->getFileType() == DIR);
+                if (isDir) { // read in directory
+                    directory = new Directory(NumDirEntries);
+                    directory->FetchFrom(openFile);
+                }
+                delete openFile;
+            }
+
+            // print the name of this file
             char *name = new char[table[i].nameLen + 1];
             GetFileName(name, i);
-	        printf("%s\n", name);
+	        printf("%s%s%s\n", leading, (isDir? "(dir) " : "") , name);
             delete[] name;
+
+            if (recur && isDir) {
+                char *next_leading = new char[strlen(leading) + 7];
+                strcpy(next_leading, "|     ");
+                strcat(next_leading, leading);
+                directory->List(TRUE, next_leading);
+                delete[] next_leading;
+                delete directory;
+            }
         }
 }
 

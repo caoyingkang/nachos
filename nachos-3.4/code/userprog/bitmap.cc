@@ -8,6 +8,7 @@
 
 #include "copyright.h"
 #include "bitmap.h"
+#include "openfile.h"
 
 //----------------------------------------------------------------------
 // BitMap::BitMap

@@ -21,7 +21,7 @@
 #define OPENFILE_H
 
 #include "copyright.h"
-#include "utility.h"
+#include "filehdr.h"
 
 #ifdef FILESYS_STUB			// Temporarily implement calls to 
 					// Nachos file system as calls to UNIX!
@@ -59,7 +59,6 @@ class OpenFile {
 };
 
 #else // FILESYS
-class FileHeader;
 
 class OpenFile {
   public:
@@ -85,7 +84,9 @@ class OpenFile {
 					// file (this interface is simpler 
 					// than the UNIX idiom -- lseek to 
 					// end of file, tell, lseek back 
-    
+	
+	FileType getFileType(); // get the type of this file
+
   private:
 	int hdrSector; // the sector of the header file
     FileHeader *hdr;			// Header for this file 

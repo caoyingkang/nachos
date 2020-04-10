@@ -200,9 +200,18 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
 // OpenFile::Length
 // 	Return the number of bytes in the file.
 //----------------------------------------------------------------------
-
 int
 OpenFile::Length() 
 { 
     return hdr->FileLength(); 
+}
+
+//----------------------------------------------------------------------
+// OpenFile::getFileType
+// 	Return the type of this file
+//----------------------------------------------------------------------
+FileType
+OpenFile::getFileType()
+{
+    return hdr->type;
 }

@@ -46,7 +46,6 @@
 #include "copyright.h"
 
 #include "disk.h"
-#include "bitmap.h"
 #include "directory.h"
 #include "filehdr.h"
 #include "filesys.h"
@@ -61,8 +60,6 @@
 // supports extensible files, the directory size sets the maximum number 
 // of files that can be loaded onto the disk.
 #define FreeMapFileSize 	(NumSectors / BitsInByte)
-#define NumDirEntries 		10
-#define DirectoryFileSize 	(sizeof(DirectoryEntry) * NumDirEntries)
 
 //----------------------------------------------------------------------
 // FileSystem::FileSystem
@@ -113,7 +110,7 @@ FileSystem::FileSystem(bool format)
         // while Nachos is running.
 
         freeMapFile = new OpenFile(FreeMapSector);
-        directoryFile = new OpenFile(DirectorySector);
+        rootDirFile = new OpenFile(DirectorySector);
      
         // Once we have the files "open", we can write the initial version
         // of each file back to disk.  The directory at this point is completely
@@ -123,7 +120,7 @@ FileSystem::FileSystem(bool format)
 
         DEBUG('f', "Writing bitmap and directory back to disk.\n");
         freeMap->WriteBack(freeMapFile);	 // flush changes to disk
-        directory->WriteBack(directoryFile);
+        directory->WriteBack(rootDirFile);
 
         if (DebugIsEnabled('f')) {
             freeMap->Print();
@@ -138,7 +135,7 @@ FileSystem::FileSystem(bool format)
         // if we are not formatting the disk, just open the files representing
         // the bitmap and directory; these are left open while Nachos is running
         freeMapFile = new OpenFile(FreeMapSector);
-        directoryFile = new OpenFile(DirectorySector);
+        rootDirFile = new OpenFile(DirectorySector);
     }
 }
 
@@ -170,6 +167,7 @@ FileSystem::FileSystem(bool format)
 //	"name" -- name of file to be created
 //	"initialSize" -- size of file to be created
 //  "type" -- type of file to be created
+//  Note: Assume that "name" is in absolute path format, i.e. begin with "/".
 //----------------------------------------------------------------------
 bool
 FileSystem::Create(char *name, int initialSize, FileType type)
@@ -177,13 +175,37 @@ FileSystem::Create(char *name, int initialSize, FileType type)
     Directory *directory;
     BitMap *freeMap;
     FileHeader *hdr;
+    OpenFile *openFile;
     int sector;
     bool success;
+    bool inRootDir;
 
     DEBUG('f', "Creating file %s, size %d\n", name, initialSize);
 
+    // find the index of the last '/' character in "name"
+    int i, len = strlen(name);
+    for (i = len - 1; i >= 0 && name[i] != '/'; i--);
+    ASSERT(name[i] == '/');
+    inRootDir = (i == 0);
+
+    // open the directory file in which the new file is to be created
+    if (inRootDir) {
+        openFile = rootDirFile;
+    } else {
+        name[i] = '\0';
+        openFile = Open(name);
+        if (openFile == NULL) // path "name" is not valid
+            return FALSE;
+        name[i] = '/';
+    }
+    ASSERT(openFile->getFileType() == DIR);
+
+    // read in directory
     directory = new Directory(NumDirEntries);
-    directory->FetchFrom(directoryFile);
+    directory->FetchFrom(openFile);
+
+    // strip off path-info in "name"
+    name += i + 1;
 
     if (directory->Find(name) != -1)
         success = FALSE;			// file is already in directory
@@ -203,7 +225,7 @@ FileSystem::Create(char *name, int initialSize, FileType type)
                 success = TRUE;
                 // everthing worked, flush all changes back to disk
                 hdr->WriteBack(sector); 		
-                directory->WriteBack(directoryFile);
+                directory->WriteBack(openFile);
                 freeMap->WriteBack(freeMapFile);
             }
             delete hdr;
@@ -211,32 +233,81 @@ FileSystem::Create(char *name, int initialSize, FileType type)
         delete freeMap;
     }
     delete directory;
+    if (openFile != rootDirFile)
+        delete openFile;
     return success;
 }
 
 //----------------------------------------------------------------------
 // FileSystem::Open
 // 	Open a file for reading and writing.  
-//	To open a file:
-//	  Find the location of the file's header, using the directory 
-//	  Bring the header into memory
 //
-//	"name" -- the text name of the file to be opened
+//	"name" -- the path of the file to be opened.
+//  Note: Assume that "name" is in absolute path format: 
+//        "/dir1/dir2/.../dirn/xxx". (n>=0)
+//  If any one of dir1, dir2, ..., dirn does not exist or is not a 
+//  directory, return NULL.
+//  If xxx does not exist, return NULL.
 //----------------------------------------------------------------------
 OpenFile *
 FileSystem::Open(char *name)
-{ 
-    Directory *directory = new Directory(NumDirEntries);
-    OpenFile *openFile = NULL;
+{
+    int i, pre_i, len = strlen(name);
+    Directory *directory;
+    OpenFile *openFile;
     int sector;
+    bool success = TRUE;
+
+    // make sure that "name" is in the right format
+    ASSERT(len >= 2 && name[0] == '/' && name[len - 1] != '/');
+
+    directory = new Directory(NumDirEntries);
+    directory->FetchFrom(rootDirFile);
+
+    char *dirname = new char[len];
+    for (i = 1, pre_i = 0; i < len; i++) {
+        if (name[i] != '/')
+            continue;
+
+        // get directory name
+        strncpy(dirname, name + pre_i + 1, i - pre_i - 1);
+        dirname[i - pre_i - 1] = '\0'; // add trailing zero
+
+        // find "dirname" in current dir
+        sector = directory->Find(dirname);
+        if (sector == -1) { // "dirname" does not exist
+            success = FALSE;
+            break;
+        }
+
+        // open next directory "dirname" and read in its contents
+        openFile = new OpenFile(sector);
+        if (openFile->getFileType() != DIR) { // "dirname" is not a dir
+            success = FALSE;
+            break;
+        }
+        delete directory; // delete the previous one
+        directory = new Directory(NumDirEntries);
+        directory->FetchFrom(openFile);
+        delete openFile; // close the file
+        
+        pre_i = i;
+    }
+    delete[] dirname;
+    
+    if (success == FALSE) {
+        delete directory;
+        return NULL;
+    }
 
     DEBUG('f', "Opening file %s\n", name);
-    directory->FetchFrom(directoryFile);
-    sector = directory->Find(name); 
-    if (sector >= 0) 		
-	openFile = new OpenFile(sector);	// name was found in directory 
+
+    sector = directory->Find(name + pre_i + 1);
     delete directory;
-    return openFile;				// return NULL if not found
+    if (sector >= 0) 		
+	    return new OpenFile(sector); // name was found in directory 
+    else
+        return NULL;
 }
 
 //----------------------------------------------------------------------
@@ -248,41 +319,71 @@ FileSystem::Open(char *name)
 //	    Write changes to directory, bitmap back to disk
 //
 //	Return TRUE if the file was deleted, FALSE if the file wasn't
-//	in the file system.
+//	in the file system or the path "name" is invalid.
 //
 //	"name" -- the text name of the file to be removed
+//  Note: Assume that "name" is in absolute path format, i.e. begin with "/".
 //----------------------------------------------------------------------
 bool
 FileSystem::Remove(char *name)
-{ 
+{
     Directory *directory;
+    OpenFile *openFile;
     BitMap *freeMap;
     FileHeader *fileHdr;
     int sector;
-    
+    bool success;
+    bool inRootDir;
+
+    // find the index of the last '/' character in "name"
+    int i, len = strlen(name);
+    for (i = len - 1; i >= 0 && name[i] != '/'; i--);
+    ASSERT(name[i] == '/');
+    inRootDir = (i == 0);
+
+    // open the directory file in which the new file is to be created
+    if (inRootDir) {
+        openFile = rootDirFile;
+    } else {
+        name[i] = '\0';
+        openFile = Open(name);
+        if (openFile == NULL) // path "name" is not valid
+            return FALSE;
+        name[i] = '/';
+    }
+    ASSERT(openFile->getFileType() == DIR);
+
+    // read in directory
     directory = new Directory(NumDirEntries);
-    directory->FetchFrom(directoryFile);
+    directory->FetchFrom(openFile);
+
+    // strip off path-info in "name"
+    name += i + 1;
+
     sector = directory->Find(name);
     if (sector == -1) {
-       delete directory;
-       return FALSE;			 // file not found 
+        success = FALSE; // file not found 
+    } else {
+        success = TRUE;
+        fileHdr = new FileHeader;
+        fileHdr->FetchFrom(sector);
+
+        freeMap = new BitMap(NumSectors);
+        freeMap->FetchFrom(freeMapFile);
+
+        fileHdr->Deallocate(freeMap);  		// remove data blocks
+        freeMap->Clear(sector);			// remove header block
+        directory->Remove(name);
+
+        freeMap->WriteBack(freeMapFile);		// flush to disk
+        directory->WriteBack(openFile);        // flush to disk
+        delete fileHdr;
+        delete freeMap;        
     }
-    fileHdr = new FileHeader;
-    fileHdr->FetchFrom(sector);
-
-    freeMap = new BitMap(NumSectors);
-    freeMap->FetchFrom(freeMapFile);
-
-    fileHdr->Deallocate(freeMap);  		// remove data blocks
-    freeMap->Clear(sector);			// remove header block
-    directory->Remove(name);
-
-    freeMap->WriteBack(freeMapFile);		// flush to disk
-    directory->WriteBack(directoryFile);        // flush to disk
-    delete fileHdr;
     delete directory;
-    delete freeMap;
-    return TRUE;
+    if (openFile != rootDirFile)
+        delete openFile;
+    return success;
 } 
 
 //----------------------------------------------------------------------
@@ -292,10 +393,11 @@ FileSystem::Remove(char *name)
 void
 FileSystem::List()
 {
+    printf("--------List all files in Nachos file system--------\n");
+    printf("(dir) root\n");
     Directory *directory = new Directory(NumDirEntries);
-
-    directory->FetchFrom(directoryFile);
-    directory->List();
+    directory->FetchFrom(rootDirFile);
+    directory->List(TRUE, "|-----");
     delete directory;
 }
 
@@ -329,7 +431,7 @@ FileSystem::Print()
     freeMap->Print();
 
     printf("-------------------Root directory: ---------------------\n");
-    directory->FetchFrom(directoryFile);
+    directory->FetchFrom(rootDirFile);
     directory->Print();
 
     delete bitHdr;
