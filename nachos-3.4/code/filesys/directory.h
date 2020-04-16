@@ -106,6 +106,8 @@ class Directory {
 					//  of the directory -- all the file
 					//  names and their contents.
 
+    bool isEmpty(); // if the directory contains no files ?
+
   private:
     int tableSize;			// Number of directory entries
     DirectoryEntry *table; // DirectoryEntries or LongFileNameDirEntries

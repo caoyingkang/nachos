@@ -284,12 +284,26 @@ Directory::Print()
 
 //----------------------------------------------------------------------
 // Directory::GetFileName
+//  return ture if the directory contains no files.
+//----------------------------------------------------------------------
+bool
+Directory::isEmpty()
+{
+    for (int i = 0; i < tableSize; i++)
+        if (table[i].inUse)
+            return FALSE;
+    return TRUE;
+}
+
+//----------------------------------------------------------------------
+// Directory::GetFileName
 // 	Store the full file name of the index entry in str. 
 //  Note: make sure that the entry at 'index' is a normal entry!
 //  Note: make sure that str has enough space!
 //----------------------------------------------------------------------
 void
-Directory::GetFileName(char *str, int index) {
+Directory::GetFileName(char *str, int index)
+{
     ASSERT(table[index].inUse && table[index].normal);
     
     int k, offset;

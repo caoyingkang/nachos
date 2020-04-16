@@ -185,7 +185,7 @@ FileSystem::Create(char *name, int initialSize, FileType type)
     // find the index of the last '/' character in "name"
     int i, len = strlen(name);
     for (i = len - 1; i >= 0 && name[i] != '/'; i--);
-    ASSERT(name[i] == '/');
+    ASSERT(i >= 0 && name[i] == '/');
     inRootDir = (i == 0);
 
     // open the directory file in which the new file is to be created
@@ -284,6 +284,7 @@ FileSystem::Open(char *name)
         openFile = new OpenFile(sector);
         if (openFile->getFileType() != DIR) { // "dirname" is not a dir
             success = FALSE;
+            delete openFile;
             break;
         }
         delete directory; // delete the previous one
@@ -332,16 +333,16 @@ FileSystem::Remove(char *name)
     BitMap *freeMap;
     FileHeader *fileHdr;
     int sector;
-    bool success;
+    bool success = TRUE;
     bool inRootDir;
 
     // find the index of the last '/' character in "name"
     int i, len = strlen(name);
     for (i = len - 1; i >= 0 && name[i] != '/'; i--);
-    ASSERT(name[i] == '/');
+    ASSERT(i >= 0 && name[i] == '/');
     inRootDir = (i == 0);
 
-    // open the directory file in which the new file is to be created
+    // open the directory file containing the to-be-removed file
     if (inRootDir) {
         openFile = rootDirFile;
     } else {
@@ -364,21 +365,35 @@ FileSystem::Remove(char *name)
     if (sector == -1) {
         success = FALSE; // file not found 
     } else {
-        success = TRUE;
         fileHdr = new FileHeader;
         fileHdr->FetchFrom(sector);
 
-        freeMap = new BitMap(NumSectors);
-        freeMap->FetchFrom(freeMapFile);
+        if (fileHdr->getFileType() == DIR) {
+            // check if the directory is empty
+            OpenFile *rm_of = new OpenFile(sector);
+            Directory *rm_dir = new Directory(NumDirEntries);
+            rm_dir->FetchFrom(rm_of);
+            if (!rm_dir->isEmpty()) { // non-empty, cannot remove it!
+                printf("Unable to remove a non-empty directory!\n");
+                success = FALSE;
+            }
+            delete rm_of;
+            delete rm_dir;
+        }
 
-        fileHdr->Deallocate(freeMap);  		// remove data blocks
-        freeMap->Clear(sector);			// remove header block
-        directory->Remove(name);
+        if (success) { // yes, we can remove it.
+            freeMap = new BitMap(NumSectors);
+            freeMap->FetchFrom(freeMapFile);
 
-        freeMap->WriteBack(freeMapFile);		// flush to disk
-        directory->WriteBack(openFile);        // flush to disk
+            fileHdr->Deallocate(freeMap); // remove data blocks
+            freeMap->Clear(sector); // remove header block
+            directory->Remove(name);
+
+            freeMap->WriteBack(freeMapFile); // flush to disk
+            directory->WriteBack(openFile); // flush to disk
+            delete freeMap;
+        }
         delete fileHdr;
-        delete freeMap;        
     }
     delete directory;
     if (openFile != rootDirFile)
