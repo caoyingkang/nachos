@@ -125,12 +125,12 @@ FileSystem::FileSystem(bool format)
         if (DebugIsEnabled('f')) {
             freeMap->Print();
             directory->Print();
-
-            delete freeMap; 
-            delete directory; 
-            delete mapHdr; 
-            delete dirHdr;
         }
+
+        delete freeMap; 
+        delete directory; 
+        delete mapHdr; 
+        delete dirHdr;
     } else {
         // if we are not formatting the disk, just open the files representing
         // the bitmap and directory; these are left open while Nachos is running
@@ -229,6 +229,14 @@ FileSystem::Create(char *name, int initialSize, FileType type)
                 freeMap->WriteBack(freeMapFile);
             }
             delete hdr;
+            if (type == DIR) { // initialize the created directory
+                ASSERT(initialSize == DirectoryFileSize);
+                OpenFile *dirFile = new OpenFile(sector);
+                Directory *dir = new Directory(NumDirEntries);
+                dir->WriteBack(dirFile);
+                delete dir;
+                delete dirFile;
+            }
         }
         delete freeMap;
     }
@@ -413,6 +421,7 @@ FileSystem::List()
     Directory *directory = new Directory(NumDirEntries);
     directory->FetchFrom(rootDirFile);
     directory->List(TRUE, "|-----");
+    printf("\n");
     delete directory;
 }
 
