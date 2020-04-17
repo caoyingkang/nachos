@@ -35,16 +35,15 @@ static void ConsoleWriteDone(int c)
 //		been output, so that it is ok to request the next char be
 //		output
 //----------------------------------------------------------------------
-
 Console::Console(char *readFile, char *writeFile, VoidFunctionPtr readAvail, 
 		VoidFunctionPtr writeDone, int callArg)
 {
     if (readFile == NULL)
-	readFileNo = 0;					// keyboard = stdin
+	    readFileNo = 0; // keyboard = stdin
     else
-    	readFileNo = OpenForReadWrite(readFile, TRUE);	// should be read-only
+    	readFileNo = OpenForReadWrite(readFile, TRUE); // should be read-only
     if (writeFile == NULL)
-	writeFileNo = 1;				// display = stdout
+	    writeFileNo = 1; // display = stdout
     else
     	writeFileNo = OpenForWrite(writeFile);
 
@@ -63,13 +62,12 @@ Console::Console(char *readFile, char *writeFile, VoidFunctionPtr readAvail,
 // Console::~Console
 // 	Clean up console emulation
 //----------------------------------------------------------------------
-
 Console::~Console()
 {
     if (readFileNo != 0)
-	Close(readFileNo);
+	    Close(readFileNo);
     if (writeFileNo != 1)
-	Close(writeFileNo);
+	    Close(writeFileNo);
 }
 
 //----------------------------------------------------------------------
@@ -82,7 +80,6 @@ Console::~Console()
 //	Invoke the "read" interrupt handler, once the character has been 
 //	put into the buffer. 
 //----------------------------------------------------------------------
-
 void
 Console::CheckCharAvail()
 {
@@ -94,13 +91,13 @@ Console::CheckCharAvail()
 
     // do nothing if character is already buffered, or none to be read
     if ((incoming != EOF) || !PollFile(readFileNo))
-	return;	  
+	    return;	  
 
     // otherwise, read character and tell user about it
     Read(readFileNo, &c, sizeof(char));
-    incoming = c ;
+    incoming = c;
     stats->numConsoleCharsRead++;
-    (*readHandler)(handlerArg);	
+    (*readHandler)(handlerArg);
 }
 
 //----------------------------------------------------------------------
@@ -109,7 +106,6 @@ Console::CheckCharAvail()
 //	handler to tell the Nachos kernel that the output character has
 //	completed.
 //----------------------------------------------------------------------
-
 void
 Console::WriteDone()
 {
@@ -123,7 +119,6 @@ Console::WriteDone()
 // 	Read a character from the input buffer, if there is any there.
 //	Either return the character, or EOF if none buffered.
 //----------------------------------------------------------------------
-
 char
 Console::GetChar()
 {
@@ -138,7 +133,6 @@ Console::GetChar()
 // 	Write a character to the simulated display, schedule an interrupt 
 //	to occur in the future, and return.
 //----------------------------------------------------------------------
-
 void
 Console::PutChar(char ch)
 {

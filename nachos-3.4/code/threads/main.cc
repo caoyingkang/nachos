@@ -136,15 +136,26 @@ main(int argc, char **argv)
 
             StartProcess(*(_argv + 1));
             argCount = 2;
-        } else if (!strcmp(*_argv, "-c")) {      // test the console
+        } else if (!strcmp(*_argv, "-c")) { // test the console
 			if (_argc == 1)
 				ConsoleTest(NULL, NULL);
 			else {
-			ASSERT(_argc > 2);
+				ASSERT(_argc > 2);
 				ConsoleTest(*(_argv + 1), *(_argv + 2));
 				argCount = 3;
 			}
-			interrupt->Halt();		// once we start the console, then 
+			interrupt->Halt(); // once we start the console, then 
+						// Nachos will loop forever waiting 
+						// for console input
+		} else if (!strcmp(*_argv, "-sc")) { // test the synch console
+			if (_argc == 1)
+				ConsoleTest(NULL, NULL);
+			else {
+				ASSERT(_argc > 2);
+				ConsoleTest(*(_argv + 1), *(_argv + 2));
+				argCount = 3;
+			}
+			interrupt->Halt(); // once we start the console, then 
 						// Nachos will loop forever waiting 
 						// for console input
 		}
