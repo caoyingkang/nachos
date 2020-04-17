@@ -74,7 +74,7 @@ class FileSystem {
 					// the disk, so initialize the directory
     					// and the bitmap of free blocks.
 
-    bool Create(char *name, int initialSize, FileType type);
+    bool Create(char *name, FileType type);
 					// Create a file (UNIX creat)
 
     OpenFile* Open(char *name); 	// Open a file (UNIX open)
@@ -90,6 +90,8 @@ class FileSystem {
 					// represented as a file
 	OpenFile *rootDirFile;		// "Root" directory -- list of 
 					// file names, represented as a file
+	friend class OpenFile;
+	friend class FileHeader;
 };
 
 #endif // FILESYS

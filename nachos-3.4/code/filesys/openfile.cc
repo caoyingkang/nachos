@@ -156,12 +156,18 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
     bool firstAligned, lastAligned;
     char *buf;
 
-    if ((numBytes <= 0) || (position >= fileLength))
-	return 0;				// check request
-    if ((position + numBytes) > fileLength)
-	numBytes = fileLength - position;
-    DEBUG('f', "Writing %d bytes at %d, from file of length %d.\n", 	
-			numBytes, position, fileLength);
+    // extend the file size if necessary
+    if (position + numBytes > fileLength) {
+        BitMap *freeMap = new BitMap(NumSectors);
+        freeMap->FetchFrom(fileSystem->freeMapFile);
+        if (!hdr->IncreaseSize(freeMap, position + numBytes - fileLength)) {
+            printf("Unable to extend the size of the file.\n");
+            delete freeMap;
+            return 0;
+        }
+        freeMap->WriteBack(fileSystem->freeMapFile); // flush changes to disk
+        delete freeMap;
+    }
 
     firstSector = divRoundDown(position, SectorSize);
     lastSector = divRoundDown(position + numBytes - 1, SectorSize);

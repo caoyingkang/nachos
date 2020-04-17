@@ -98,7 +98,7 @@ AddrSpace::AddrSpace(OpenFile *executable, int _tid)
     }
     ASSERT(tmp == ResSize);
 
-    // creat and open a swap file
+    // create and open a swap file
     char swapFileName[10] = "swap_";
     sprintf(&swapFileName[5], "%d", _tid);
     //itoa(_tid, &swapFileName[5], 10);

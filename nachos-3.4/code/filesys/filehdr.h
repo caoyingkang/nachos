@@ -74,6 +74,9 @@ class FileHeader {
 
     FileType getFileType() {return type;}
 
+    bool IncreaseSize(BitMap *freeMap, int inc); // allocate more disk space
+                            // so that file size increases by 'inc'
+
   private:
     int numBytes;			// Number of bytes in the file
     int numSectors;			// Number of data sectors in the file

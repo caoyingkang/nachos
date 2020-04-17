@@ -165,12 +165,11 @@ FileSystem::FileSystem(bool format)
 //	to the file system!
 //
 //	"name" -- name of file to be created
-//	"initialSize" -- size of file to be created
 //  "type" -- type of file to be created
 //  Note: Assume that "name" is in absolute path format, i.e. begin with "/".
 //----------------------------------------------------------------------
 bool
-FileSystem::Create(char *name, int initialSize, FileType type)
+FileSystem::Create(char *name, FileType type)
 {
     Directory *directory;
     BitMap *freeMap;
@@ -180,7 +179,7 @@ FileSystem::Create(char *name, int initialSize, FileType type)
     bool success;
     bool inRootDir;
 
-    DEBUG('f', "Creating file %s, size %d\n", name, initialSize);
+    DEBUG('f', "Creating file %s\n", name);
 
     // find the index of the last '/' character in "name"
     int i, len = strlen(name);
@@ -219,7 +218,7 @@ FileSystem::Create(char *name, int initialSize, FileType type)
             success = FALSE;	// no space in directory
         else {
             hdr = new FileHeader;
-            if (!hdr->Allocate(freeMap, initialSize, type))
+            if (!hdr->Allocate(freeMap, ((type == DIR) ? DirectoryFileSize : 0), type))
                 success = FALSE;	// no space on disk for data
             else {	
                 success = TRUE;
@@ -230,7 +229,6 @@ FileSystem::Create(char *name, int initialSize, FileType type)
             }
             delete hdr;
             if (type == DIR) { // initialize the created directory
-                ASSERT(initialSize == DirectoryFileSize);
                 OpenFile *dirFile = new OpenFile(sector);
                 Directory *dir = new Directory(NumDirEntries);
                 dir->WriteBack(dirFile);

@@ -83,6 +83,74 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize, FileType t)
 }
 
 //----------------------------------------------------------------------
+// FileHeader::IncreaseSize
+// 	Allocate more disk space so that file size increases by 'inc'.
+//	Return FALSE if there are not enough free blocks.
+//
+//	"freeMap" is the bit map of free disk sectors
+//	"inc" is the increment of file size
+//----------------------------------------------------------------------
+bool
+FileHeader::IncreaseSize(BitMap *freeMap, int inc)
+{
+    int i, k;
+    ASSERT(inc > 0);
+    int new_numBytes = numBytes + inc;
+    int new_numSectors  = divRoundUp(new_numBytes, SectorSize);
+    int num_indr = divRoundUp(numSectors, SectorSize / sizeof(int));
+    int new_num_indr = divRoundUp(new_numSectors, SectorSize / sizeof(int));
+    ASSERT(new_num_indr <= NumIndirect);
+
+    if (new_numBytes > MaxFileSize) {
+        //printf("exceed MaxFileSize!");
+        return FALSE; // exceed MaxFileSize!
+    }
+    if (freeMap->NumClear() < 
+        (new_numSectors + new_num_indr) - (numSectors + num_indr)) {
+        //printf("not enough free disk space!");
+	    return FALSE; // not enough free disk space
+    }
+
+    int len = SectorSize / sizeof(int);
+    int *sectors = new int[len];
+
+    if (num_indr == new_num_indr) {
+        synchDisk->ReadSector(indirectSectors[num_indr - 1], (char *)sectors);
+        for (k = numSectors - len * (num_indr - 1);
+             k < new_numSectors - len * (new_num_indr - 1); k++)
+            sectors[k] = freeMap->Find();
+        synchDisk->WriteSector(indirectSectors[num_indr - 1], (char *)sectors);
+    } else {
+        if (num_indr > 0) {
+            synchDisk->ReadSector(indirectSectors[num_indr - 1], (char *)sectors);
+            for (k = numSectors - len * (num_indr - 1); k < len; k++)
+                sectors[k] = freeMap->Find();
+            synchDisk->WriteSector(indirectSectors[num_indr - 1], (char *)sectors);
+        }
+        for (i = num_indr; i < new_num_indr; i++) {
+            indirectSectors[i] = freeMap->Find();
+            if (i != new_num_indr - 1)
+                for (k = 0; k < len; k++)
+                    sectors[k] = freeMap->Find();
+            else {
+                for (k = 0; k < (new_numSectors - len * (new_num_indr - 1)); k++)
+                    sectors[k] = freeMap->Find();
+                for (; k < len; k++)
+                    sectors[k] = -1;
+            }
+            synchDisk->WriteSector(indirectSectors[i], (char *)sectors);
+        }
+    }
+    delete[] sectors;
+
+    printf("Successfully extend file size from %d to %d.\n", numBytes, new_numBytes);
+
+    numBytes = new_numBytes;
+    numSectors = new_numSectors;
+    return TRUE;
+}
+
+//----------------------------------------------------------------------
 // FileHeader::Deallocate
 // 	De-allocate all the space allocated for data blocks for this file.
 //

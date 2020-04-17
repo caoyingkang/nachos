@@ -49,7 +49,7 @@ Copy(char *from, char *to)
 
 // Create a Nachos file of the same length
     DEBUG('f', "Copying file %s, size %d, to file %s\n", from, fileLength, to);
-    if (!fileSystem->Create(to, fileLength, type)) {	 // Create Nachos file
+    if (!fileSystem->Create(to, type)) {	 // Create Nachos file
         printf("Copy: couldn't create output file %s\n", to);
         fclose(fp);
         return;
@@ -108,7 +108,7 @@ Print(char *name)
 //	  PerformanceTest -- overall control, and print out performance #'s
 //----------------------------------------------------------------------
 
-#define FileName 	"TestFile"
+#define FileName 	"/TestFile"
 #define Contents 	"1234567890"
 #define ContentSize 	strlen(Contents)
 #define FileSize 	((int)(ContentSize * 5000))
@@ -116,29 +116,29 @@ Print(char *name)
 static void 
 FileWrite()
 {
-    // OpenFile *openFile;    
-    // int i, numBytes;
+    OpenFile *openFile;    
+    int i, numBytes;
 
-    // printf("Sequential write of %d byte file, in %d byte chunks\n", 
-	// FileSize, ContentSize);
-    // if (!fileSystem->Create(FileName, 0)) {
-    //   printf("Perf test: can't create %s\n", FileName);
-    //   return;
-    // }
-    // openFile = fileSystem->Open(FileName);
-    // if (openFile == NULL) {
-	// printf("Perf test: unable to open %s\n", FileName);
-	// return;
-    // }
-    // for (i = 0; i < FileSize; i += ContentSize) {
-    //     numBytes = openFile->Write(Contents, ContentSize);
-	// if (numBytes < 10) {
-	//     printf("Perf test: unable to write %s\n", FileName);
-	//     delete openFile;
-	//     return;
-	// }
-    // }
-    // delete openFile;	// close file
+    printf("Sequential write of %d byte file, in %d byte chunks\n", 
+	        FileSize, ContentSize);
+    if (!fileSystem->Create(FileName, UNK)) {
+        printf("Perf test: can't create %s\n", FileName);
+        return;
+    }
+    openFile = fileSystem->Open(FileName);
+    if (openFile == NULL) {
+        printf("Perf test: unable to open %s\n", FileName);
+        return;
+    }
+    for (i = 0; i < FileSize; i += ContentSize) {
+        numBytes = openFile->Write(Contents, ContentSize);
+        if (numBytes < 10) {
+            printf("Perf test: unable to write %s\n", FileName);
+            delete openFile;
+            return;
+        }
+    }
+    delete openFile;	// close file
 }
 
 static void 
@@ -149,21 +149,21 @@ FileRead()
     int i, numBytes;
 
     printf("Sequential read of %d byte file, in %d byte chunks\n", 
-	FileSize, ContentSize);
+	        FileSize, ContentSize);
 
     if ((openFile = fileSystem->Open(FileName)) == NULL) {
-	printf("Perf test: unable to open file %s\n", FileName);
-	delete [] buffer;
-	return;
+        printf("Perf test: unable to open file %s\n", FileName);
+        delete [] buffer;
+        return;
     }
     for (i = 0; i < FileSize; i += ContentSize) {
         numBytes = openFile->Read(buffer, ContentSize);
-	if ((numBytes < 10) || strncmp(buffer, Contents, ContentSize)) {
-	    printf("Perf test: unable to read %s\n", FileName);
-	    delete openFile;
-	    delete [] buffer;
-	    return;
-	}
+        if ((numBytes < 10) || strncmp(buffer, Contents, ContentSize)) {
+            printf("Perf test: unable to read %s\n", FileName);
+            delete openFile;
+            delete [] buffer;
+            return;
+        }
     }
     delete [] buffer;
     delete openFile;	// close file
@@ -176,10 +176,10 @@ PerformanceTest()
     stats->Print();
     FileWrite();
     FileRead();
-    if (!fileSystem->Remove(FileName)) {
-      printf("Perf test: unable to remove %s\n", FileName);
-      return;
-    }
+    // if (!fileSystem->Remove(FileName)) {
+    //     printf("Perf test: unable to remove %s\n", FileName);
+    //     return;
+    // }
     stats->Print();
 }
 
@@ -191,7 +191,7 @@ PerformanceTest()
 //----------------------------------------------------------------------
 void
 MakeDir(char *name) {
-    if(!fileSystem->Create(name, DirectoryFileSize, DIR)) {
+    if(!fileSystem->Create(name, DIR)) {
         printf("MakeDir: Unable to create directory %s!\n", name);
     }
 }
