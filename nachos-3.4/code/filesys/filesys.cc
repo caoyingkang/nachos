@@ -49,6 +49,7 @@
 #include "directory.h"
 #include "filehdr.h"
 #include "filesys.h"
+#include "synch.h"
 
 // Sectors containing the file headers for the bitmap of free sectors,
 // and the directory of files.  These file headers are placed in well-known 
@@ -60,6 +61,30 @@
 // supports extensible files, the directory size sets the maximum number 
 // of files that can be loaded onto the disk.
 #define FreeMapFileSize 	(NumSectors / BitsInByte)
+
+// record how many OpenFile objects are associated with each file.
+// This array is indexed with the sector of the file header.
+// Since the # of files in system cannot exceed NumSectors, we set the length of 
+// this array as this number.
+int fcnt[NumSectors] = {0};
+
+// system open file header
+// This array is indexed with the sector of the file header.
+// Since the # of files in system cannot exceed NumSectors, we set the length of 
+// this array as this number.
+FileHeader *hdrs[NumSectors] = {NULL};
+Lock *hdr_lock[NumSectors] = {NULL};
+
+// Semaphores used to synchronize read/write the same file from multiple threads.
+// This array is indexed with the sector of the file header.
+// Since the # of files in system cannot exceed NumSectors, we set the length of 
+// this array as this number.
+Semaphore *fsems[NumSectors] = {NULL};
+Lock *readcnt_lock[NumSectors] = {NULL};
+int file_read_cnt[NumSectors] = {0};
+
+// this lock is for exclusion calls to FileSystem::Create and FileSystem::Remove
+static Lock filesys_lock("filesys_lock");
 
 //----------------------------------------------------------------------
 // FileSystem::FileSystem
@@ -76,8 +101,22 @@
 FileSystem::FileSystem(bool format)
 {
     ASSERT(sizeof(FileHeader) == SectorSize);
-
     DEBUG('f', "Initializing the file system.\n");
+
+    // set up semaphores and locks
+    ASSERT(fsems[FreeMapSector] == NULL && fsems[DirectorySector] == NULL);
+    ASSERT(readcnt_lock[FreeMapSector] == NULL && readcnt_lock[DirectorySector] == NULL);
+    ASSERT(file_read_cnt[FreeMapSector] == 0 && file_read_cnt[DirectorySector] == 0);
+    ASSERT(fcnt[FreeMapSector] == 0 && fcnt[DirectorySector] == 0);
+    ASSERT(hdrs[FreeMapSector] == NULL && hdrs[DirectorySector] == NULL);
+    ASSERT(hdr_lock[FreeMapSector] == NULL && hdr_lock[DirectorySector] == NULL);
+    fsems[FreeMapSector] = new Semaphore("fsem", 1);
+    readcnt_lock[FreeMapSector] = new Lock("readcnt_lock");
+    hdr_lock[FreeMapSector] = new Lock("hdr_lock");
+    fsems[DirectorySector] = new Semaphore("fsem", 1);
+    readcnt_lock[DirectorySector] = new Lock("readcnt_lock");
+    hdr_lock[DirectorySector] = new Lock("hdr_lock");
+
     if (format) {
         BitMap *freeMap = new BitMap(NumSectors);
         Directory *directory = new Directory(NumDirEntries);
@@ -171,6 +210,8 @@ FileSystem::FileSystem(bool format)
 bool
 FileSystem::Create(char *name, FileType type)
 {
+    filesys_lock.Acquire();
+
     Directory *directory;
     BitMap *freeMap;
     FileHeader *hdr;
@@ -193,8 +234,10 @@ FileSystem::Create(char *name, FileType type)
     } else {
         name[i] = '\0';
         openFile = Open(name);
-        if (openFile == NULL) // path "name" is not valid
+        if (openFile == NULL) { // path "name" is not valid
+            filesys_lock.Release();        
             return FALSE;
+        }
         name[i] = '/';
     }
     ASSERT(openFile->getFileType() == DIR);
@@ -226,6 +269,13 @@ FileSystem::Create(char *name, FileType type)
                 hdr->WriteBack(sector); 		
                 directory->WriteBack(openFile);
                 freeMap->WriteBack(freeMapFile);
+
+                // set up semaphores and locks
+                ASSERT(fsems[sector] == NULL && readcnt_lock[sector] == NULL && hdr_lock[sector] == NULL);
+                ASSERT(file_read_cnt[sector] == 0 && fcnt[sector] == 0 && hdrs[sector] == NULL);
+                fsems[sector] = new Semaphore("fsem", 1);
+                readcnt_lock[sector] = new Lock("readcnt_lock");
+                hdr_lock[sector] = new Lock("hdr_lock");
             }
             delete hdr;
             if (type == DIR) { // initialize the created directory
@@ -241,6 +291,8 @@ FileSystem::Create(char *name, FileType type)
     delete directory;
     if (openFile != rootDirFile)
         delete openFile;
+    
+    filesys_lock.Release();        
     return success;
 }
 
@@ -334,6 +386,8 @@ FileSystem::Open(char *name)
 bool
 FileSystem::Remove(char *name)
 {
+    filesys_lock.Acquire();
+
     Directory *directory;
     OpenFile *openFile;
     BitMap *freeMap;
@@ -354,8 +408,10 @@ FileSystem::Remove(char *name)
     } else {
         name[i] = '\0';
         openFile = Open(name);
-        if (openFile == NULL) // path "name" is not valid
+        if (openFile == NULL) { // path "name" is not valid
+            filesys_lock.Release();
             return FALSE;
+        }
         name[i] = '/';
     }
     ASSERT(openFile->getFileType() == DIR);
@@ -387,6 +443,12 @@ FileSystem::Remove(char *name)
             delete rm_dir;
         }
 
+        // check if the file is currently used by some threads
+        if (fcnt[sector] != 0) {
+            printf("Unable to remove the file, it is opened elsewhere!\n");
+            success = FALSE;
+        }
+
         if (success) { // yes, we can remove it.
             freeMap = new BitMap(NumSectors);
             freeMap->FetchFrom(freeMapFile);
@@ -398,12 +460,24 @@ FileSystem::Remove(char *name)
             freeMap->WriteBack(freeMapFile); // flush to disk
             directory->WriteBack(openFile); // flush to disk
             delete freeMap;
+
+            // delete semaphores and locks
+            ASSERT(fsems[sector] != NULL && readcnt_lock[sector] != NULL && hdr_lock[sector] != NULL);
+            ASSERT(file_read_cnt[sector] == 0 && fcnt[sector] == 0 && hdrs[sector] == NULL);
+            delete fsems[sector];
+            delete readcnt_lock[sector];
+            delete hdr_lock[sector];
+            fsems[sector] = NULL;
+            readcnt_lock[sector] = NULL;
+            hdr_lock[sector] = NULL;
         }
         delete fileHdr;
     }
     delete directory;
     if (openFile != rootDirFile)
         delete openFile;
+    
+    filesys_lock.Release();
     return success;
 } 
 

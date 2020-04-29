@@ -143,7 +143,7 @@ FileHeader::IncreaseSize(BitMap *freeMap, int inc)
     }
     delete[] sectors;
 
-    printf("Successfully extend file size from %d to %d.\n", numBytes, new_numBytes);
+    DEBUG('f', "Successfully extend file size from %d to %d.\n", numBytes, new_numBytes);
 
     numBytes = new_numBytes;
     numSectors = new_numSectors;

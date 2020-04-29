@@ -330,6 +330,71 @@ void ThreadTest7() {
     t7->Fork(BarrierTest, 0);
 }
 
+//----------------------------------------------------------------------
+// ThreadTest8
+// 	 Test synchronized read/write to the same file among multiple threads.
+//   Also test falsy removal of a file which is still opened elsewhere.
+//----------------------------------------------------------------------
+#ifdef FILESYS
+
+static Semaphore sem("sem", 0);
+
+void ReadAndRemoveFile (int dummy) {
+    OpenFile *openFile = fileSystem->Open("/threadtest8.txt");
+
+    char str[11];
+    openFile->Read(str, 10);
+    str[10] = '\0';
+    printf("*** thread \"%s\" successfully read file: %s\n", currentThread->getName(), str);
+
+    delete openFile; // close file
+
+    printf("*** thread \"%s\" attempts to remove file.\n", currentThread->getName());
+    if (fileSystem->Remove("/threadtest8.txt") == TRUE)
+        printf("*** thread \"%s\" successfully remove file.\n", currentThread->getName());
+    
+    sem.V();
+}
+
+void WriteAndRemoveFile (int dummy) {
+    OpenFile *openFile = fileSystem->Open("/threadtest8.txt");
+
+    openFile->Write("0123456789", 10);
+    printf("*** thread \"%s\" successfully write file.\n", currentThread->getName());
+
+    delete openFile; // close file
+
+    printf("*** thread \"%s\" attempts to remove file.\n", currentThread->getName());
+    if (fileSystem->Remove("/threadtest8.txt") == TRUE)
+        printf("*** thread \"%s\" successfully remove file.\n", currentThread->getName());
+
+    sem.V();
+}
+
+void ThreadTest8() {
+    DEBUG('t', "Entering ThreadTest8");
+
+    fileSystem->Create("/threadtest8.txt", TXT);
+    OpenFile *openFile = fileSystem->Open("/threadtest8.txt");
+
+    openFile->Write("0000000000", 10);
+
+    Thread *t1 = new Thread("forked1"), 
+           *t2 = new Thread("forked2");
+    t1->Fork(WriteAndRemoveFile, 0);
+    t2->Fork(ReadAndRemoveFile, 0);
+
+    currentThread->Yield();
+    sem.P();
+    sem.P();
+
+    delete openFile; // close file
+
+    printf("*** thread \"%s\" attempts to remove file.\n", currentThread->getName());
+    if (fileSystem->Remove("/threadtest8.txt") == TRUE)
+        printf("*** thread \"%s\" successfully remove file.\n", currentThread->getName());
+}
+#endif // FILESYS
 
 //----------------------------------------------------------------------
 // ThreadTest
@@ -365,6 +430,11 @@ ThreadTest()
     case 7:
 	ThreadTest7();
 	break;
+#ifdef FILESYS
+    case 8:
+	ThreadTest8();
+	break;
+#endif // FILESYS
     default:
 	printf("No test specified.\n");
 	break;

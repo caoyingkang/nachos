@@ -75,7 +75,8 @@ class OpenFile {
 					// and increment position in file.
     int Write(char *from, int numBytes);
 
-    int ReadAt(char *into, int numBytes, int position);
+    int ReadAt(char *into, int numBytes, int position, 
+				bool calledInWriteAt = FALSE);
     					// Read/write bytes from the file,
 					// bypassing the implicit position.
     int WriteAt(char *from, int numBytes, int position);
@@ -89,7 +90,6 @@ class OpenFile {
 
   private:
 	int hdrSector; // the sector of the header file
-    FileHeader *hdr;			// Header for this file 
     int seekPosition;			// Current position within the file
 };
 

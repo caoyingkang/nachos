@@ -634,7 +634,10 @@ filesys.o: ../filesys/filesys.cc /usr/include/stdc-predef.h \
  /usr/include/xlocale.h ../filesys/directory.h ../filesys/openfile.h \
  ../filesys/filehdr.h ../userprog/bitmap.h \
  /usr/lib/gcc/i686-linux-gnu/5/include/stdint.h /usr/include/stdint.h \
- /usr/include/i386-linux-gnu/bits/wchar.h ../filesys/filesys.h
+ /usr/include/i386-linux-gnu/bits/wchar.h ../filesys/filesys.h \
+ ../threads/synch.h ../threads/thread.h ../threads/utility.h \
+ ../machine/machine.h ../machine/translate.h ../machine/disk.h \
+ ../userprog/addrspace.h ../filesys/filesys.h ../threads/list.h
 fstest.o: ../filesys/fstest.cc /usr/include/stdc-predef.h \
  ../threads/copyright.h ../threads/utility.h ../threads/copyright.h \
  ../threads/bool.h ../machine/sysdep.h /usr/include/stdio.h \
