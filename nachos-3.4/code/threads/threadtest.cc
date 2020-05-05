@@ -330,12 +330,12 @@ void ThreadTest7() {
     t7->Fork(BarrierTest, 0);
 }
 
+#ifdef FILESYS
 //----------------------------------------------------------------------
 // ThreadTest8
 // 	 Test synchronized read/write to the same file among multiple threads.
 //   Also test falsy removal of a file which is still opened elsewhere.
 //----------------------------------------------------------------------
-#ifdef FILESYS
 
 static Semaphore sem("sem", 0);
 
@@ -384,7 +384,6 @@ void ThreadTest8() {
     t1->Fork(WriteAndRemoveFile, 0);
     t2->Fork(ReadAndRemoveFile, 0);
 
-    currentThread->Yield();
     sem.P();
     sem.P();
 
@@ -394,6 +393,112 @@ void ThreadTest8() {
     if (fileSystem->Remove("/threadtest8.txt") == TRUE)
         printf("*** thread \"%s\" successfully remove file.\n", currentThread->getName());
 }
+#endif // FILESYS
+
+#ifdef FILESYS
+//----------------------------------------------------------------------
+// ThreadTest9
+// 	 Pipe file
+//----------------------------------------------------------------------
+
+static int pipeFileSize = 10;
+static int len;
+static int pipeReadPos, pipeWritePos;
+static OpenFile *pipeOpenFile;
+static Lock pipe_lock("pipe_lock");
+static Condition pipe_rcond("pipe_rcond");
+static Condition pipe_wcond("pipe_wcond");
+
+bool
+MakeFIFO(char *file_name)
+{
+    if (fileSystem->Create(file_name, FIFO)) {
+        pipeOpenFile = fileSystem->Open(file_name);
+        pipeReadPos = pipeWritePos = 0;
+        len = 0;
+        return TRUE;
+    } else {
+        return FALSE;
+    }
+}
+
+void
+WriteFIFO(char *file_name, char *from, int numBytes)
+{
+    pipe_lock.Acquire();
+    while (numBytes + len > pipeFileSize) {
+        pipe_wcond.Wait(&pipe_lock);
+    }
+
+    if (pipeWritePos + numBytes <= pipeFileSize) {
+        pipeOpenFile->WriteAt(from, numBytes, pipeWritePos);
+        pipeWritePos += numBytes;
+        if (pipeWritePos == pipeFileSize)
+            pipeWritePos = 0;
+    } else {
+        int bytes1 = pipeFileSize - pipeWritePos;
+        int bytes2 = numBytes - bytes1;
+        pipeOpenFile->WriteAt(from, bytes1, pipeWritePos);
+        pipeOpenFile->WriteAt(from + bytes1, bytes2, 0);
+        pipeWritePos = bytes2;
+    }
+    len += numBytes;
+
+    pipe_rcond.Signal(&pipe_lock);
+    pipe_lock.Release();
+}
+
+void
+ReadFIFO(char *file_name, char *to, int numBytes)
+{
+    pipe_lock.Acquire();
+    while (len < numBytes) {
+        pipe_rcond.Wait(&pipe_lock);
+    }
+
+    if (pipeReadPos + numBytes <= pipeFileSize) {
+        pipeOpenFile->ReadAt(to, numBytes, pipeReadPos);
+        pipeReadPos += numBytes;
+        if (pipeReadPos == pipeFileSize)
+            pipeReadPos = 0;
+    } else {
+        int bytes1 = pipeFileSize - pipeReadPos;
+        int bytes2 = numBytes - bytes1;
+        pipeOpenFile->ReadAt(to, bytes1, pipeReadPos);
+        pipeOpenFile->ReadAt(to + bytes1, bytes2, 0);
+        pipeReadPos = bytes2;
+    }
+    len -= numBytes;
+
+    pipe_wcond.Signal(&pipe_lock);
+    pipe_lock.Release();
+}
+
+void ReadPipeBytes (int dummy) {
+    char ch;
+    while (TRUE) {
+        ReadFIFO("/pipe_FIFO", &ch, 1);
+        printf("[%c]", ch);
+    }
+}
+
+void ThreadTest9() {
+    DEBUG('t', "Entering ThreadTest9");
+
+    MakeFIFO("/pipe_FIFO");
+
+    Thread *t = new Thread("forked");
+    t->Fork(ReadPipeBytes, 0);
+
+    char str[11];
+    while (TRUE) {
+        scanf("%s", str);
+        if (str[0] == 'q' && str[1] == '\0')
+            break;
+        WriteFIFO("/pipe_FIFO", str, strlen(str));
+    }
+}
+
 #endif // FILESYS
 
 //----------------------------------------------------------------------
@@ -433,6 +538,9 @@ ThreadTest()
 #ifdef FILESYS
     case 8:
 	ThreadTest8();
+	break;
+    case 9:
+	ThreadTest9();
 	break;
 #endif // FILESYS
     default:

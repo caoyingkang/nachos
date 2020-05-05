@@ -30,6 +30,7 @@ enum FileType : uint32_t
   TXT,    // text
   CC,     // cpp source file
   BIT,    // bitmap
+  FIFO,   // FIFO pipe file
   UNK     // unknown type
 };
 
