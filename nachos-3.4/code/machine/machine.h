@@ -128,10 +128,9 @@ class Machine {
     void Run();	 		// Run a user program
 
     int ReadRegister(int num);	// read the contents of a CPU register
+    void WriteRegister(int num, int value); // store a value into a CPU register
 
-    void WriteRegister(int num, int value);
-				// store a value into a CPU register
-
+	void UpdatePCinSyscall(); // advance program counter in syscall handler
 
 // Routines internal to the machine simulation -- DO NOT call these 
 
@@ -139,7 +138,7 @@ class Machine {
     				// Run one instruction of a user program.
     void DelayedLoad(int nextReg, int nextVal);  	
 				// Do a pending delayed load (modifying a reg)
-    
+
     bool ReadMem(int addr, int size, int* value);
     bool WriteMem(int addr, int size, int value);
     				// Read or write 1, 2, or 4 bytes of virtual 

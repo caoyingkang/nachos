@@ -21,7 +21,7 @@
 //	memory, and jump to it.
 //----------------------------------------------------------------------
 void
-StartProcess(char *filename)
+StartProcess(char *filename, char *currWorkDir)
 {
     OpenFile *executable = fileSystem->Open(filename);
     AddrSpace *space;
@@ -30,7 +30,7 @@ StartProcess(char *filename)
         printf("Unable to open file \"%s\"\n", filename);
         return;
     }
-    space = new AddrSpace(executable, currentThread->getThreadID());    
+    space = new AddrSpace(executable, currentThread->getThreadID(), currWorkDir);
     currentThread->space = space;
 
     delete executable; // close file

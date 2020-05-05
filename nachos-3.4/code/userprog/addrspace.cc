@@ -60,11 +60,15 @@ SwapHeader (NoffHeader *noffH)
 //	"executable" is the file containing the object code to load into memory
 //  "_tid" is the thread which will run this user prog
 //----------------------------------------------------------------------
-AddrSpace::AddrSpace(OpenFile *executable, int _tid)
+AddrSpace::AddrSpace(OpenFile *executable, int _tid, char *_cwd)
 {
     NoffHeader noffH;
     int i;
     unsigned int size;
+
+    int len = strlen(_cwd);
+    ASSERT(len > 0 && _cwd[0] == '/' && _cwd[len-1] == '/');
+    currWorkDir = _cwd;
 
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if ((noffH.noffMagic != NOFFMAGIC) && 
@@ -226,9 +230,6 @@ AddrSpace::AddrSpace(OpenFile *executable, int _tid)
     }
 #endif // INV_PG
 
-    // debug msg
-    //machine->mem_bmp->Print();
-
 #ifdef USE_TLB
     tlb_lookup_cnt = 0;
     tlb_miss_cnt = 0;
@@ -265,9 +266,8 @@ AddrSpace::~AddrSpace()
     delete machine->ro_bmp[_tid];
     machine->ro_bmp[_tid] = NULL;
 
-    char swapFileName[10] = "swap_";
-    sprintf(&swapFileName[5], "%d", _tid);
-    //itoa(_tid, &swapFileName[5], 10);
+    char swapFileName[16] = "/swap/swap_";
+    sprintf(&swapFileName[11], "%d", _tid);
     fileSystem->Remove(swapFileName);
 
 #else // use normal page table, one per user prog. do not support VM.

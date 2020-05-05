@@ -25,6 +25,30 @@
 #include "system.h"
 #include "syscall.h"
 
+// Get string starting at virtual address "addr".
+// Don't forget to delete the returned string outside this function!
+char *
+getStrArg(int addr)
+{
+    int data;
+    int len = 0;
+    // get str length
+    while (TRUE) {
+        machine->ReadMem(addr + len, 1, &data);
+        if (((char)data) == '\0')
+            break;
+        len++;
+    }
+    // get str
+    char *str = new char[len + 1];
+    for (int i = 0; i < len; i++) {
+        machine->ReadMem(addr + i, 1, &data);
+        str[i] = (char)data;
+    }
+    str[len] = '\0';
+    return str;
+}
+
 //----------------------------------------------------------------------
 // ExceptionHandler
 // 	Entry point into the Nachos kernel.  Called when a user program
@@ -54,10 +78,13 @@ ExceptionHandler(ExceptionType which)
 // SyscallException
     if (which == SyscallException) {
         int type = machine->ReadRegister(2);
+        int arg1, arg2, arg3;
+        int len;
+        char *str, *filename;
         switch (type) {
 
           case SC_Halt:
-            DEBUG('a', "Shutdown, initiated by user program.\n");
+            DEBUG('a', "In Syscall Halt.\n");
 #ifdef USE_TLB
             printf("Total times TLB miss happens: %d\n", 
                     currentThread->space->tlb_miss_cnt);
@@ -66,15 +93,32 @@ ExceptionHandler(ExceptionType which)
             break; // never reached
         
           case SC_Exit:
-            int arg1 = machine->ReadRegister(4);
+            DEBUG('a', "In Syscall Exit.\n");
+            arg1 = machine->ReadRegister(4);
             printf("User program (tid=%d) exits with code: %d\n", 
                     currentThread->getThreadID(), arg1);
             currentThread->Finish();
             break; // never reached
 
-        //   case SC_Create:
-        //     char *name = (char *)machine->ReadRegister(4);
-        //     fileSystem->Create(name, UNK);
+          case SC_Create:
+            DEBUG('a', "In Syscall Create.\n");
+
+            arg1 = (char *)machine->ReadRegister(4);
+            str = getStrArg(arg1);
+            len = strlen(currentThread->space->currWorkDir) + strlen(str);
+            filename = new char[len + 1];
+            strcpy(filename, currentThread->space->currWorkDir);
+            strcat(filename, str);
+
+            if (!fileSystem->Create(filename, UNK)) {
+                printf("Unable to create file \"%s\".\n", filename);
+                ASSERT(FALSE);
+            }
+            delete[] str;
+            delete[] filename;
+
+            machine->UpdatePCinSyscall(); // increment the pc
+            break;
             
           default:
             printf("Unimplemented syscall!\n");

@@ -563,6 +563,18 @@ Machine::OneInstruction(Instruction *instr)
 }
 
 //----------------------------------------------------------------------
+// Machine::UpdatePCinSyscall
+// 	Advance program counter in syscall handler
+//----------------------------------------------------------------------
+void
+Machine::UpdatePCinSyscall()
+{
+	registers[PrevPCReg] = registers[PCReg]; // for debugging
+    registers[PCReg] = registers[NextPCReg];
+    registers[NextPCReg] += 4;
+}
+
+//----------------------------------------------------------------------
 // Machine::DelayedLoad
 // 	Simulate effects of a delayed load.
 //

@@ -61,7 +61,7 @@ extern int testnum;
 
 extern void ThreadTest(void), Copy(char *unixFile, char *nachosFile);
 extern void Print(char *file), PerformanceTest(void);
-extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
+extern void StartProcess(char *filename, char *currWorkDir), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
 extern void MakeDir(char *name);
 
@@ -82,9 +82,9 @@ extern void MakeDir(char *name);
 #ifdef USER_PROGRAM
 /////////////////////////////////////////////
 // test multiprogramming without SC_Exec
-void StartSortProg(int dummy) {
-	StartProcess("sort");
-}
+// void StartSortProg(int dummy) {
+// 	StartProcess("sort");
+// }
 /////////////////////////////////////////////
 #endif // USER_PROGRAM
 
@@ -134,7 +134,7 @@ main(int argc, char **argv)
 			// t->Fork(StartSortProg, 0);
 /////////////////////////////////////////////
 
-            StartProcess(*(_argv + 1));
+            StartProcess(*(_argv + 1), "/test/");
             argCount = 2;
         } else if (!strcmp(*_argv, "-c")) { // test the console
 			if (_argc == 1)

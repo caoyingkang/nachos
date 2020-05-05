@@ -20,7 +20,7 @@
 
 class AddrSpace {
   public:
-    AddrSpace(OpenFile *executable, int _tid); // Create an address space,
+    AddrSpace(OpenFile *executable, int _tid, char *_cwd); // Create an address space,
 					              // initializing it with the program
 					              // stored in the file "executable"
     ~AddrSpace();			// De-allocate an address space
@@ -50,6 +50,7 @@ class AddrSpace {
 
     unsigned int numPages; // Number of pages in the virtual 
 					                // address space
+    char *currWorkDir; // current working directory
 
   private:
 #ifndef INV_PG // use normal page table, one per user prog. do not support VM.
