@@ -20,7 +20,6 @@
 // 	Run a user program.  Open the executable, load it into
 //	memory, and jump to it.
 //----------------------------------------------------------------------
-
 void
 StartProcess(char *filename)
 {
@@ -28,17 +27,17 @@ StartProcess(char *filename)
     AddrSpace *space;
 
     if (executable == NULL) {
-	printf("Unable to open file %s\n", filename);
-	return;
+        printf("Unable to open file \"%s\"\n", filename);
+        return;
     }
     space = new AddrSpace(executable, currentThread->getThreadID());    
     currentThread->space = space;
 
-    delete executable;			// close file
+    delete executable; // close file
 
-#ifdef INV_PG
-    machine->PrintInvPageTable();
-#endif // INV_PG
+// #ifdef INV_PG
+//     machine->PrintInvPageTable();
+// #endif // INV_PG
 
     space->InitRegisters();		// set the initial register values
     space->RestoreState();		// load page table register

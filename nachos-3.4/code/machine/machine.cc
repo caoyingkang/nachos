@@ -114,17 +114,15 @@ Machine::~Machine()
 //	"which" -- the cause of the kernel trap
 //	"badVaddr" -- the virtual address causing the trap, if appropriate
 //----------------------------------------------------------------------
-
 void
 Machine::RaiseException(ExceptionType which, int badVAddr)
 {
     DEBUG('m', "Exception: %s\n", exceptionNames[which]);
     
-//  ASSERT(interrupt->getStatus() == UserMode);
     registers[BadVAddrReg] = badVAddr;
-    DelayedLoad(0, 0);			// finish anything in progress
+    DelayedLoad(0, 0); // finish anything in progress
     interrupt->setStatus(SystemMode);
-    ExceptionHandler(which);		// interrupts are enabled at this point
+    ExceptionHandler(which); // interrupts are enabled at this point
     interrupt->setStatus(UserMode);
 }
 

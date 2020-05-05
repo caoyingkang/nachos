@@ -62,8 +62,6 @@ SwapHeader (NoffHeader *noffH)
 //----------------------------------------------------------------------
 AddrSpace::AddrSpace(OpenFile *executable, int _tid)
 {
-    printf("Initializing AddrSpace of tid %d\n", _tid);
-
     NoffHeader noffH;
     int i;
     unsigned int size;
@@ -79,8 +77,8 @@ AddrSpace::AddrSpace(OpenFile *executable, int _tid)
 						// to leave room for the stack
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
-    DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
-					numPages, size);
+    DEBUG('a', "Initializing address space, num pages %d, size %d, tid %d\n", 
+					numPages, size, _tid);
 
 // set up the translation, and copy the code and data segments into memory
 #ifdef INV_PG // use global inverted page table, thus support VM.
@@ -99,10 +97,9 @@ AddrSpace::AddrSpace(OpenFile *executable, int _tid)
     ASSERT(tmp == ResSize);
 
     // create and open a swap file
-    char swapFileName[10] = "swap_";
-    sprintf(&swapFileName[5], "%d", _tid);
-    //itoa(_tid, &swapFileName[5], 10);
-    fileSystem->Create(swapFileName, size);
+    char swapFileName[16] = "/swap/swap_";
+    sprintf(&swapFileName[11], "%d", _tid);
+    fileSystem->Create(swapFileName, SWAP);
 
     machine->swapFiles[_tid] = fileSystem->Open(swapFileName);
     machine->ro_bmp[_tid] = new BitMap(numPages);

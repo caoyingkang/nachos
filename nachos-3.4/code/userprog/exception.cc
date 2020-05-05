@@ -54,30 +54,29 @@ ExceptionHandler(ExceptionType which)
 // SyscallException
     if (which == SyscallException) {
         int type = machine->ReadRegister(2);
-        switch (type) 
-        {
-        case SC_Halt:
+        switch (type) {
+
+          case SC_Halt:
             DEBUG('a', "Shutdown, initiated by user program.\n");
 #ifdef USE_TLB
-            // printf("Total times address translation takes place: %d\n", 
-            //         currentThread->space->tlb_lookup_cnt);
             printf("Total times TLB miss happens: %d\n", 
                     currentThread->space->tlb_miss_cnt);
 #endif // USE_TLB
             interrupt->Halt();
             break; // never reached
         
-        case SC_Exit:
+          case SC_Exit:
             int arg1 = machine->ReadRegister(4);
-            printf("User program (tid=%d) exiting with code: %d\n", 
-                currentThread->getThreadID(), arg1);
-#ifdef INV_PG
-            machine->PrintInvPageTable();
-#endif // INV_PG
+            printf("User program (tid=%d) exits with code: %d\n", 
+                    currentThread->getThreadID(), arg1);
             currentThread->Finish();
             break; // never reached
+
+        //   case SC_Create:
+        //     char *name = (char *)machine->ReadRegister(4);
+        //     fileSystem->Create(name, UNK);
             
-        default:
+          default:
             printf("Unimplemented syscall!\n");
             ASSERT(FALSE);
             break;

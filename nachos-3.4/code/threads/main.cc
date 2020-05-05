@@ -125,13 +125,13 @@ main(int argc, char **argv)
         if (!strcmp(*_argv, "-z")) // print copyright
             printf (copyright);
 #ifdef USER_PROGRAM
-        if (!strcmp(*_argv, "-x")) {        	// run a user program
+        if (!strcmp(*_argv, "-x")) { // run a user program
 	    	ASSERT(_argc > 1);
 
 /////////////////////////////////////////////
 // test multiprogramming without SC_Exec
-			Thread *t = new Thread("forked");
-			t->Fork(StartSortProg, 0);
+			// Thread *t = new Thread("forked");
+			// t->Fork(StartSortProg, 0);
 /////////////////////////////////////////////
 
             StartProcess(*(_argv + 1));

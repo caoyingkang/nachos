@@ -31,6 +31,7 @@ enum FileType : uint32_t
   CC,     // cpp source file
   BIT,    // bitmap
   FIFO,   // FIFO pipe file
+  SWAP,   // Swap file
   UNK     // unknown type
 };
 

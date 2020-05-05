@@ -19,12 +19,12 @@
 #include <strings.h>
 #endif
 
-extern int fcnt[];
-extern Semaphore *fsems[];
-extern Lock *readcnt_lock[];
-extern int file_read_cnt[];
+extern int of_cnt[];
 extern FileHeader *hdrs[];
-extern Lock *hdr_lock[];
+extern Lock hdrs_lock;
+extern Semaphore *rw_sem[];
+extern int fread_cnt[];
+extern Lock *fread_lock[];
 
 //----------------------------------------------------------------------
 // OpenFile::OpenFile
@@ -38,15 +38,21 @@ OpenFile::OpenFile(int sector)
     seekPosition = 0;
     hdrSector = sector;
 
-    ASSERT(hdr_lock[hdrSector] != NULL);
-    hdr_lock[hdrSector]->Acquire();
-    fcnt[hdrSector]++;
-    if (fcnt[hdrSector] == 1) {
+    hdrs_lock.Acquire();
+    of_cnt[hdrSector]++;
+    if (of_cnt[hdrSector] == 1) {
         ASSERT(hdrs[hdrSector] == NULL);
         hdrs[hdrSector] = new FileHeader;
         hdrs[hdrSector]->FetchFrom(hdrSector);
+
+        ASSERT(rw_sem[hdrSector] == NULL);
+        rw_sem[hdrSector] = new Semaphore("rw_sem", 1);
+
+        ASSERT(fread_cnt[hdrSector] == 0);
+        ASSERT(fread_lock[hdrSector] == NULL);
+        fread_lock[hdrSector] = new Lock("fread_lock");
     }
-    hdr_lock[hdrSector]->Release();
+    hdrs_lock.Release();
 }
 
 //----------------------------------------------------------------------
@@ -55,13 +61,23 @@ OpenFile::OpenFile(int sector)
 //----------------------------------------------------------------------
 OpenFile::~OpenFile()
 {
-    hdr_lock[hdrSector]->Acquire();
-    fcnt[hdrSector]--;
-    if (fcnt[hdrSector] == 0) {
+    hdrs_lock.Acquire();
+    of_cnt[hdrSector]--;
+    if (of_cnt[hdrSector] == 0) {
+        ASSERT(hdrs[hdrSector] != NULL);
         delete hdrs[hdrSector];
         hdrs[hdrSector] = NULL;
+
+        ASSERT(rw_sem[hdrSector] != NULL);
+        delete rw_sem[hdrSector];
+        rw_sem[hdrSector] = NULL;
+
+        ASSERT(fread_cnt[hdrSector] == 0);
+        ASSERT(fread_lock[hdrSector] != NULL);
+        delete fread_lock[hdrSector];
+        fread_lock[hdrSector] = NULL;
     }
-    hdr_lock[hdrSector]->Release();
+    hdrs_lock.Release();
 }
 
 //----------------------------------------------------------------------
@@ -136,11 +152,13 @@ int
 OpenFile::ReadAt(char *into, int numBytes, int position, bool calledInWriteAt)
 {
     if (!calledInWriteAt) {
-        readcnt_lock[hdrSector]->Acquire();
-        file_read_cnt[hdrSector]++;
-        if (file_read_cnt[hdrSector] == 1)
-            fsems[hdrSector]->P();
-        readcnt_lock[hdrSector]->Release();
+        ASSERT(fread_lock[hdrSector] != NULL);
+
+        fread_lock[hdrSector]->Acquire();
+        fread_cnt[hdrSector]++;
+        if (fread_cnt[hdrSector] == 1)
+            rw_sem[hdrSector]->P();
+        fread_lock[hdrSector]->Release();
     }
 
     int fileLength = hdrs[hdrSector]->FileLength();
@@ -149,11 +167,11 @@ OpenFile::ReadAt(char *into, int numBytes, int position, bool calledInWriteAt)
 
     if ((numBytes <= 0) || (position >= fileLength)) {
         if (!calledInWriteAt) {
-            readcnt_lock[hdrSector]->Acquire();
-            file_read_cnt[hdrSector]--;
-            if (file_read_cnt[hdrSector] == 0)
-                fsems[hdrSector]->V();
-            readcnt_lock[hdrSector]->Release();
+            fread_lock[hdrSector]->Acquire();
+            fread_cnt[hdrSector]--;
+            if (fread_cnt[hdrSector] == 0)
+                rw_sem[hdrSector]->V();
+            fread_lock[hdrSector]->Release();
         }
     	return 0; 				// check request
     }
@@ -177,17 +195,17 @@ OpenFile::ReadAt(char *into, int numBytes, int position, bool calledInWriteAt)
     delete [] buf;
 
     // update last visited time
-    hdr_lock[hdrSector]->Acquire();
+    hdrs_lock.Acquire();
     getCurrTime(hdrs[hdrSector]->visit_time);
     hdrs[hdrSector]->WriteBack(hdrSector);
-    hdr_lock[hdrSector]->Release();
+    hdrs_lock.Release();
 
     if (!calledInWriteAt) {
-        readcnt_lock[hdrSector]->Acquire();
-        file_read_cnt[hdrSector]--;
-        if (file_read_cnt[hdrSector] == 0)
-            fsems[hdrSector]->V();
-        readcnt_lock[hdrSector]->Release();
+        fread_lock[hdrSector]->Acquire();
+        fread_cnt[hdrSector]--;
+        if (fread_cnt[hdrSector] == 0)
+            rw_sem[hdrSector]->V();
+        fread_lock[hdrSector]->Release();
     }
     return numBytes;
 }
@@ -195,7 +213,7 @@ OpenFile::ReadAt(char *into, int numBytes, int position, bool calledInWriteAt)
 int
 OpenFile::WriteAt(char *from, int numBytes, int position)
 {
-    fsems[hdrSector]->P();
+    rw_sem[hdrSector]->P();
 
     int fileLength = hdrs[hdrSector]->FileLength();
     int i, firstSector, lastSector, numSectors;
@@ -210,7 +228,7 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
             printf("Unable to extend the size of the file.\n");
             delete freeMap;
 
-            fsems[hdrSector]->V();
+            rw_sem[hdrSector]->V();
             return 0;
         }
         freeMap->WriteBack(fileSystem->freeMapFile); // flush changes to disk
@@ -244,13 +262,13 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
     delete [] buf;
 
     // update last visited time and modified time
-    hdr_lock[hdrSector]->Acquire();
+    hdrs_lock.Acquire();
     getCurrTime(hdrs[hdrSector]->visit_time);
     getCurrTime(hdrs[hdrSector]->modify_time);
     hdrs[hdrSector]->WriteBack(hdrSector);
-    hdr_lock[hdrSector]->Release();
+    hdrs_lock.Release();
 
-    fsems[hdrSector]->V();
+    rw_sem[hdrSector]->V();
     return numBytes;
 }
 
