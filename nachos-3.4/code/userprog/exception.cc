@@ -27,14 +27,16 @@
 
 // Get string starting at virtual address "addr".
 // Don't forget to delete the returned string outside this function!
-char *
+static char *
 getStrArg(int addr)
 {
     int data;
     int len = 0;
     // get str length
     while (TRUE) {
-        machine->ReadMem(addr + len, 1, &data);
+        while (TRUE) // allow for possible pagefault exceptions
+            if (machine->ReadMem(addr + len, 1, &data))
+                break;
         if (((char)data) == '\0')
             break;
         len++;
@@ -42,11 +44,40 @@ getStrArg(int addr)
     // get str
     char *str = new char[len + 1];
     for (int i = 0; i < len; i++) {
-        machine->ReadMem(addr + i, 1, &data);
+        while (TRUE) // allow for possible pagefault exceptions
+            if (machine->ReadMem(addr + i, 1, &data))
+                break;
         str[i] = (char)data;
     }
     str[len] = '\0';
     return str;
+}
+
+// Read "size" bytes into "buff" from simulated memory,
+// starting from virtual address "addr".
+// Note: make sure that buff is big enough.
+static void
+ReadMemManyBytes(int addr, int size, char *buff)
+{
+    int data;
+    for (int i = 0; i < size; i++) {
+        while (TRUE) // allow for possible pagefault exceptions
+            if (machine->ReadMem(addr + i, 1, &data))
+                break;
+        buff[i] = (char)data;
+    }
+}
+
+// Write "size" bytes from "buff" to simulated memory,
+// starting from virtual address "addr".
+static void
+WriteMemManyBytes(int addr, int size, char *buff)
+{
+    for (int i = 0; i < size; i++) {
+        while (TRUE) // allow for possible pagefault exceptions
+            if (machine->WriteMem(addr + i, 1, (int)(buff[i])))
+                break;
+    }
 }
 
 //----------------------------------------------------------------------
@@ -81,6 +112,8 @@ ExceptionHandler(ExceptionType which)
         int arg1, arg2, arg3;
         int len;
         char *str, *filename;
+        char *buff;
+        OpenFile *openFile;
         switch (type) {
 
           case SC_Halt:
@@ -103,7 +136,7 @@ ExceptionHandler(ExceptionType which)
           case SC_Create:
             DEBUG('a', "In Syscall Create.\n");
 
-            arg1 = (char *)machine->ReadRegister(4);
+            arg1 = machine->ReadRegister(4);
             str = getStrArg(arg1);
             len = strlen(currentThread->space->currWorkDir) + strlen(str);
             filename = new char[len + 1];
@@ -116,6 +149,90 @@ ExceptionHandler(ExceptionType which)
             }
             delete[] str;
             delete[] filename;
+
+            machine->UpdatePCinSyscall(); // increment the pc
+            break;
+
+          case SC_Open:
+            DEBUG('a', "In Syscall Open.\n");
+
+            arg1 = machine->ReadRegister(4);
+            str = getStrArg(arg1);
+            len = strlen(currentThread->space->currWorkDir) + strlen(str);
+            filename = new char[len + 1];
+            strcpy(filename, currentThread->space->currWorkDir);
+            strcat(filename, str);
+
+            openFile = fileSystem->Open(filename);
+            delete[] str;
+            delete[] filename;
+
+            machine->WriteRegister(2, (int)openFile);
+            machine->UpdatePCinSyscall(); // increment the pc
+            break;
+
+          case SC_Write:
+            DEBUG('a', "In Syscall Write.\n");
+
+            arg1 = machine->ReadRegister(4); // addr of data buffer in mem
+            arg2 = machine->ReadRegister(5); // # of bytes
+            arg3 = machine->ReadRegister(6); // OpenFileId
+            buff = new char[arg2];
+            ReadMemManyBytes(arg1, arg2, buff);
+
+            if (arg3 == ConsoleInput) {
+                printf("Cannot Write to ConsoleInput!\n");
+                ASSERT(FALSE);
+            } else if (arg3 == ConsoleOutput) {
+                for (int i = 0; i < arg2; i++)
+                    putchar(buff[i]);
+            } else {
+                openFile = (OpenFile *)arg3;
+                openFile->Write(buff, arg2);
+            }
+            delete[] buff;
+
+            machine->UpdatePCinSyscall(); // increment the pc
+            break;
+
+          case SC_Read: // TODO: console input & output
+            DEBUG('a', "In Syscall Read.\n");
+
+            arg1 = machine->ReadRegister(4); // addr of data buffer in mem
+            arg2 = machine->ReadRegister(5); // # of bytes
+            arg3 = machine->ReadRegister(6); // OpenFileId
+            buff = new char[arg2];
+
+            if (arg3 == ConsoleInput) {
+                char ch;
+                for (len = 0; len < arg2; len++) {
+                    ch = getchar();
+                    if (ch == '\n') { // end of input
+                        break;
+                    } else { // store in buff
+                        buff[len] = ch;
+                    }
+                }
+            } else if (arg3 == ConsoleOutput) {
+                printf("Cannot Read from ConsoleOutput!\n");
+                ASSERT(FALSE);
+            } else {
+                openFile = (OpenFile *)arg3;
+                len = openFile->Read(buff, arg2);
+            }
+            WriteMemManyBytes(arg1, len, buff);
+            delete[] buff;
+
+            machine->WriteRegister(2, len);
+            machine->UpdatePCinSyscall(); // increment the pc
+            break;
+
+          case SC_Close:
+            DEBUG('a', "In Syscall Close.\n");
+
+            arg1 = machine->ReadRegister(4);
+            openFile = (OpenFile *)arg1;
+            delete openFile; // close file
 
             machine->UpdatePCinSyscall(); // increment the pc
             break;
