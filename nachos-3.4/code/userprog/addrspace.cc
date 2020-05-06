@@ -234,14 +234,120 @@ AddrSpace::AddrSpace(OpenFile *executable, int _tid, char *_cwd)
     tlb_lookup_cnt = 0;
     tlb_miss_cnt = 0;
 #endif // USE_TLB
+}
 
+//----------------------------------------------------------------------
+// CopyNachosFile
+// 	Copy the contents of the Nachos file "from" to the Nachos file "to"
+//----------------------------------------------------------------------
+static void
+CopyNachosFile(OpenFile *from, OpenFile *to)
+{
+    int amountRead;
+    char buffer[PageSize];
+    
+    from->Seek(0);
+    to->Seek(0);
+    // Copy the data in PageSize chunks
+    while ((amountRead = from->Read(buffer, PageSize)) > 0)
+	    to->Write(buffer, amountRead);
+}
+
+//----------------------------------------------------------------------
+// AddrSpace::AddrSpace
+// 	Create an address space by copying an existing one.
+//
+//	First, set up the translation from program memory to physical 
+//	memory.  For now, this is really simple (1:1), since we are
+//	only uniprogramming, and we have a single unsegmented page table
+//
+//  "old_tid" is the thread which owns the copied addrspace.
+//  "new_tid" is the thread which owns the new addrspace.
+//----------------------------------------------------------------------
+AddrSpace::AddrSpace(AddrSpace *space, int old_tid, int new_tid)
+{
+    int i, j;
+
+    numPages = space->numPages;
+    currWorkDir = space->currWorkDir;
+
+#ifdef INV_PG // use global inverted page table, thus support VM.
+
+    // allocate a resident set for the new addrspace.
+    // there must be enough page frames since MaxNumThreads 
+    // is set as (NumPhysPages / ResSize).
+    int tmp = 0;
+    for (i = 0; i < NumPhysPages; i++) {
+        if (machine->invPageTable[i].tid == -1) {
+            ASSERT(machine->invPageTable[i].valid == FALSE);
+            machine->invPageTable[i].tid = new_tid;
+            tmp++;
+            if (tmp == ResSize) break;
+        }
+    }
+    ASSERT(tmp == ResSize);
+
+    // copy invPageTable entries, contents of valid pages, and pg_next_repl, pg_lru
+#ifdef PG_LRU
+        for (int k = 0; k < ResSize; k++)
+            pg_lru[k] = -1;
+#endif // PG_LRU
+    i = j = 0;
+    while (TRUE) {
+        for (; i < NumPhysPages; i++) {
+            if (machine->invPageTable[i].tid == old_tid)
+                break;
+        }
+        for (; j < NumPhysPages; j++) {
+            if (machine->invPageTable[j].tid == new_tid)
+                break;
+        }
+        if (i == NumPhysPages && j == NumPhysPages)
+            break;
+        ASSERT(i < NumPhysPages && j < NumPhysPages);
+        machine->invPageTable[j].virtualPage = machine->invPageTable[i].virtualPage;
+        machine->invPageTable[j].valid = machine->invPageTable[i].valid;
+        machine->invPageTable[j].readOnly = machine->invPageTable[i].readOnly;
+        machine->invPageTable[j].use = machine->invPageTable[i].use;
+        machine->invPageTable[j].dirty = machine->invPageTable[i].dirty;
+        if (machine->invPageTable[j].valid)
+            memcpy(&machine->mainMemory[j * PageSize], 
+                    &machine->mainMemory[i * PageSize], PageSize);
+#ifdef PG_FIFO
+        if (space->pg_next_repl == i)
+            pg_next_repl = j;
+#else // PG_LRU
+        for (int k = 0; k < ResSize; k++) {
+            if (space->pg_lru[k] == i) {
+                pg_lru[k] = j;
+                break;
+            }
+        }
+#endif // PG_FIFO
+        i++; j++;
+    }
+
+    // create and open a swap file for the new addrspace
+    char swapFileName[16] = "/swap/swap_";
+    sprintf(&swapFileName[11], "%d", new_tid);
+    fileSystem->Create(swapFileName, SWAP);
+
+    machine->swapFiles[new_tid] = fileSystem->Open(swapFileName);
+    machine->ro_bmp[new_tid] = new BitMap(&machine->ro_bmp[old_tid]);
+
+    // copy swap file from old_tid to new_tid
+    CopyNachosFile(machine->swapFiles[old_tid], machine->swapFiles[new_tid]);
+
+#else
+    // TODO: allow for normal page table
+    ASSERT(FALSE);
+#endif
 }
 
 //----------------------------------------------------------------------
 // AddrSpace::~AddrSpace
 // 	Dealloate an address space.
 //----------------------------------------------------------------------
-
 AddrSpace::~AddrSpace()
 {
     int i;
@@ -288,7 +394,6 @@ AddrSpace::~AddrSpace()
 //	will be saved/restored into the currentThread->userRegisters
 //	when this thread is context switched out.
 //----------------------------------------------------------------------
-
 void
 AddrSpace::InitRegisters()
 {
@@ -318,7 +423,6 @@ AddrSpace::InitRegisters()
 //
 //	For now, nothing!
 //----------------------------------------------------------------------
-
 void AddrSpace::SaveState() 
 {}
 
@@ -329,7 +433,6 @@ void AddrSpace::SaveState()
 //
 //      For now, tell the machine where to find the page table.
 //----------------------------------------------------------------------
-
 void AddrSpace::RestoreState() 
 {
 #ifndef INV_PG // use normal page table, one per user prog. do not support VM.

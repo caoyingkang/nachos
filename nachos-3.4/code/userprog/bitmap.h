@@ -36,6 +36,7 @@ class BitMap {
   public:
     BitMap(int nitems);		// Initialize a bitmap, with "nitems" bits
 				// initially, all bits are cleared.
+    BitMap(BitMap *bitmap); // Initialize a bitmap by copying
     ~BitMap();			// De-allocate bitmap
     
     void Mark(int which);   	// Set the "nth" bit

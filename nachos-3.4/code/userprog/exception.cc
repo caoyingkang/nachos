@@ -80,6 +80,57 @@ WriteMemManyBytes(int addr, int size, char *buff)
     }
 }
 
+// arg structure used in syscall Exec
+struct ArgStruct
+{
+    char *filename;
+    char *currWorkDir;
+};
+
+// procedure mimics StartProcess, executed by threads forked in syscall Exec
+static void
+StartProcessFromExec (int arg)
+{
+    ArgStruct *argStruct = (ArgStruct *)arg;
+
+    OpenFile *executable = fileSystem->Open(argStruct->filename);
+    if (executable == NULL) {
+        printf("Unable to open file \"%s\"\n", argStruct->filename);
+        delete[] argStruct->filename;
+        delete argStruct;
+        return;
+    }
+
+    AddrSpace *space = new AddrSpace(executable, currentThread->getThreadID(),
+                                    argStruct->currWorkDir);
+    currentThread->space = space;
+    delete executable; // close file
+    delete[] argStruct->filename;
+    delete argStruct;
+
+    space->InitRegisters();		// set the initial register values
+    space->RestoreState();		// load page table register
+
+    machine->Run();			// jump to the user progam
+    ASSERT(FALSE);			// machine->Run never returns;
+					// the address space exits
+					// by doing the syscall "exit"
+}
+
+// procedure mimics StartProcess, executed by threads forked in syscall Fork
+static void
+StartProcessFromFork (int pc)
+{
+    currentThread->space->RestoreState();
+    machine->WriteRegister(PCReg, pc);	
+    machine->WriteRegister(NextPCReg, pc + 4);	
+
+    machine->Run();			// jump to the user progam
+    ASSERT(FALSE);			// machine->Run never returns;
+					// the address space exits
+					// by doing the syscall "exit"
+}
+
 //----------------------------------------------------------------------
 // ExceptionHandler
 // 	Entry point into the Nachos kernel.  Called when a user program
@@ -114,6 +165,9 @@ ExceptionHandler(ExceptionType which)
         char *str, *filename;
         char *buff;
         OpenFile *openFile;
+        AddrSpace *space;
+        Thread *thread;
+        ArgStruct *argStruct;
         switch (type) {
 
           case SC_Halt:
@@ -130,6 +184,7 @@ ExceptionHandler(ExceptionType which)
             arg1 = machine->ReadRegister(4);
             printf("User program (tid=%d) exits with code: %d\n", 
                     currentThread->getThreadID(), arg1);
+            Thread::tid2exitcode[currentThread->getThreadID()] = arg1;
             currentThread->Finish();
             break; // never reached
 
@@ -195,7 +250,7 @@ ExceptionHandler(ExceptionType which)
             machine->UpdatePCinSyscall(); // increment the pc
             break;
 
-          case SC_Read: // TODO: console input & output
+          case SC_Read:
             DEBUG('a', "In Syscall Read.\n");
 
             arg1 = machine->ReadRegister(4); // addr of data buffer in mem
@@ -234,6 +289,62 @@ ExceptionHandler(ExceptionType which)
             openFile = (OpenFile *)arg1;
             delete openFile; // close file
 
+            machine->UpdatePCinSyscall(); // increment the pc
+            break;
+
+          case SC_Exec:
+            DEBUG('a', "In Syscall Exec.\n");
+
+            arg1 = machine->ReadRegister(4);
+            str = getStrArg(arg1);
+            len = strlen(currentThread->space->currWorkDir) + strlen(str);
+            argStruct = new ArgStruct; // to be deleted in "StartProcessFromExec"
+            argStruct->filename = new char[len + 1]; 
+                                    // to be deleted in "StartProcessFromExec"
+            strcpy(argStruct->filename, currentThread->space->currWorkDir);
+            strcat(argStruct->filename, str);
+            argStruct->currWorkDir = currentThread->space->currWorkDir;
+            delete[] str;
+
+            thread = new Thread("forked");
+            thread->Fork(StartProcessFromExec, (void *)argStruct);
+
+            machine->WriteRegister(2, thread->getThreadID());
+            machine->UpdatePCinSyscall(); // increment the pc
+            break;
+
+          case SC_Fork:
+            DEBUG('a', "In Syscall Fork.\n");
+
+            arg1 = machine->ReadRegister(4); // "void (*func)()"
+
+            thread = new Thread("forked");
+            space = new AddrSpace(currentThread->space, currentThread->getThreadID(), 
+                                    thread->getThreadID());
+            thread->space = space;
+            machine->UpdatePCinSyscall(); // increment the pc
+            thread->SaveUserState();
+            thread->Fork(StartProcessFromFork, arg1);
+            break;
+
+          case SC_Yield:
+            DEBUG('a', "In Syscall Yield.\n");
+
+            currentThread->Yield();
+            machine->UpdatePCinSyscall(); // increment the pc
+            break;
+
+          case SC_Join:
+            DEBUG('a', "In Syscall Join.\n");
+
+            arg1 = machine->ReadRegister(4); // thread id
+            ASSERT(arg1 >= 0 && arg1 < MaxNumThreads);
+
+            while (Thread::tid2ptr[arg1] != NULL) {
+                currentThread->Yield();
+            }
+            
+            machine->WriteRegister(2, Thread::tid2exitcode[arg1]);
             machine->UpdatePCinSyscall(); // increment the pc
             break;
             

@@ -17,7 +17,6 @@
 //
 //	"nitems" is the number of bits in the bitmap.
 //----------------------------------------------------------------------
-
 BitMap::BitMap(int nitems) 
 { 
     numBits = nitems;
@@ -28,10 +27,22 @@ BitMap::BitMap(int nitems)
 }
 
 //----------------------------------------------------------------------
+// BitMap::BitMap
+//  Initialize a bitmap by copying an existing one.
+//----------------------------------------------------------------------
+BitMap::BitMap(BitMap *bitmap) 
+{
+    numBits = bitmap->numBits;
+    numWords = bitmap->numWords;
+    map = new unsigned int[numWords];
+    for (int i = 0; i < numWords; i++) 
+        map[i] = bitmap->map[i];
+}
+
+//----------------------------------------------------------------------
 // BitMap::~BitMap
 // 	De-allocate a bitmap.
 //----------------------------------------------------------------------
-
 BitMap::~BitMap()
 { 
     delete map;
@@ -56,7 +67,6 @@ BitMap::Mark(int which)
 //
 //	"which" is the number of the bit to be cleared.
 //----------------------------------------------------------------------
-
 void 
 BitMap::Clear(int which) 
 {
@@ -89,7 +99,6 @@ BitMap::Test(int which)
 //
 //	If no bits are clear, return -1.
 //----------------------------------------------------------------------
-
 int 
 BitMap::Find() 
 {
@@ -106,7 +115,6 @@ BitMap::Find()
 // 	Return the number of clear bits in the bitmap.
 //	(In other words, how many bits are unallocated?)
 //----------------------------------------------------------------------
-
 int 
 BitMap::NumClear() 
 {
@@ -142,7 +150,6 @@ BitMap::Print()
 //
 //	"file" is the place to read the bitmap from
 //----------------------------------------------------------------------
-
 void
 BitMap::FetchFrom(OpenFile *file) 
 {
@@ -155,7 +162,6 @@ BitMap::FetchFrom(OpenFile *file)
 //
 //	"file" is the place to write the bitmap to
 //----------------------------------------------------------------------
-
 void
 BitMap::WriteBack(OpenFile *file)
 {

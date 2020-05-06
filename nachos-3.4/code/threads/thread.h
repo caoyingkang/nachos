@@ -172,7 +172,7 @@ class Thread {
           // records whether a tid has been assigned to an existing thread
     static int tidLast;
           // tid of the last created thread. (initialized to -1)
-
+  public:
     static Thread* tid2ptr[MaxNumThreads]; 
           // record the pointer to each Thread instance
 
@@ -180,7 +180,7 @@ class Thread {
 // A thread running a user program actually has *two* sets of CPU registers -- 
 // one for its state while executing user code, one for its state 
 // while executing kernel code.
-
+  private:
     int userRegisters[NumTotalRegs];	// user-level CPU register state
 
   public:
@@ -188,6 +188,10 @@ class Thread {
     void RestoreUserState();		// restore user-level register state
 
     AddrSpace *space;			// User code this thread is running.
+
+    static int tid2exitcode[MaxNumThreads]; 
+          // record the exit status of user program. default: 0.
+          // to tell whether a user prog has exited, look at "tid2ptr".
 #endif
 };
 

@@ -35,10 +35,6 @@ StartProcess(char *filename, char *currWorkDir)
 
     delete executable; // close file
 
-// #ifdef INV_PG
-//     machine->PrintInvPageTable();
-// #endif // INV_PG
-
     space->InitRegisters();		// set the initial register values
     space->RestoreState();		// load page table register
 

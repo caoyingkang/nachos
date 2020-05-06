@@ -78,16 +78,6 @@ extern void MakeDir(char *name);
 //	"argv" is an array of strings, one for each command line argument
 //		ex: "nachos -d +" -> argv = {"nachos", "-d", "+"}
 //----------------------------------------------------------------------
-
-#ifdef USER_PROGRAM
-/////////////////////////////////////////////
-// test multiprogramming without SC_Exec
-// void StartSortProg(int dummy) {
-// 	StartProcess("sort");
-// }
-/////////////////////////////////////////////
-#endif // USER_PROGRAM
-
 int
 main(int argc, char **argv)
 {
@@ -127,13 +117,6 @@ main(int argc, char **argv)
 #ifdef USER_PROGRAM
         if (!strcmp(*_argv, "-x")) { // run a user program
 	    	ASSERT(_argc > 1);
-
-/////////////////////////////////////////////
-// test multiprogramming without SC_Exec
-			// Thread *t = new Thread("forked");
-			// t->Fork(StartSortProg, 0);
-/////////////////////////////////////////////
-
             StartProcess(*(_argv + 1), "/test/");
             argCount = 2;
         } else if (!strcmp(*_argv, "-c")) { // test the console

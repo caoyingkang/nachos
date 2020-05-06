@@ -31,6 +31,7 @@ int Thread::totalNum = 0;
 int Thread::tidLast = -1;
 bool Thread::tidAssigned[MaxNumThreads] = {0};
 Thread* Thread::tid2ptr[MaxNumThreads] = {NULL};
+int Thread::tid2exitcode[MaxNumThreads] = {0};
 
 //----------------------------------------------------------------------
 // Thread::Thread
@@ -181,8 +182,6 @@ Thread::CheckOverflow()
 // 	NOTE: we disable interrupts, so that we don't get a time slice 
 //	between setting threadToBeDestroyed, and going to sleep.
 //----------------------------------------------------------------------
-
-//
 void
 Thread::Finish ()
 {
@@ -192,7 +191,6 @@ Thread::Finish ()
     DEBUG('t', "Finishing thread \"%s\"\n", getName());
     
 #ifdef USER_PROGRAM
-    // printf("Deallocating AddrSpace of tid %d\n", tID);
     delete space;
 #endif // USER_PROGRAM
 
@@ -316,6 +314,13 @@ static void StartupRoutine() {
     // timer interrupt may appear before RecordTime.
     currentThread->RecordTime(stats->totalTicks);
 #endif
+
+#ifdef USER_PROGRAM
+    if (currentThread->space != NULL) {	// if there is an address space
+        currentThread->RestoreUserState(); // to restore, do it.
+	    currentThread->space->RestoreState();
+    }
+#endif // USER_PROGRAM
 
     interrupt->Enable();
 }
